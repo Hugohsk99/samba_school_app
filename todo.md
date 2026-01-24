@@ -292,3 +292,13 @@
 - [ ] Criar histórico de movimentações por fantasia
 - [ ] Adicionar relatório de fantasias entregues/devolvidas
 
+
+
+## Sprint 9 - Correções de Bugs
+
+### Correções Reportadas pelo Usuário
+- [x] Corrigir funcionalidade de foto do integrante (não carrega/exibe corretamente)
+- [x] Garantir que a foto seja salva e exibida na tela de integrante
+- [x] Adicionar botão de adicionar material na tela de Estoque (só aparece na Home)
+- [x] Verificar permissões de acesso ao botão de adicionar material
+

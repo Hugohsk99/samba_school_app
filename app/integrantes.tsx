@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Text, View, TouchableOpacity, TextInput, FlatList, Platform } from "react-native";
+import { Text, View, TouchableOpacity, TextInput, FlatList, Platform, Image } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { ScreenContainer } from "@/components/screen-container";
 import { useData } from "@/lib/data-context";
@@ -82,11 +82,19 @@ export default function IntegrantesScreen() {
       >
         <View className="flex-row items-center gap-4">
           {/* Avatar */}
-          <View className="w-14 h-14 rounded-full bg-primary/20 items-center justify-center">
-            <Text className="text-primary text-xl font-bold">
-              {item.nome.charAt(0).toUpperCase()}
-            </Text>
-          </View>
+          {item.foto ? (
+            <Image
+              source={{ uri: item.foto }}
+              className="w-14 h-14 rounded-full"
+              resizeMode="cover"
+            />
+          ) : (
+            <View className="w-14 h-14 rounded-full bg-primary/20 items-center justify-center">
+              <Text className="text-primary text-xl font-bold">
+                {item.nome.charAt(0).toUpperCase()}
+              </Text>
+            </View>
+          )}
 
           {/* Informações */}
           <View className="flex-1">
