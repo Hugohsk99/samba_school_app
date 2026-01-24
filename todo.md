@@ -101,3 +101,31 @@
 - [ ] Criar guia de uso para o usuário
 - [ ] Documentar estrutura de dados
 - [ ] Criar README com instruções de desenvolvimento
+
+
+## Sprint Atual - Fase 2
+
+### Persistência de Dados
+- [x] Criar módulo de storage com AsyncStorage
+- [x] Implementar funções CRUD genéricas
+- [x] Criar hooks customizados para cada entidade
+- [x] Implementar contexto global de dados
+
+### CRUD de Blocos
+- [x] Criar formulário de novo bloco
+- [x] Implementar edição de bloco existente
+- [x] Adicionar confirmação de exclusão
+- [x] Integrar com persistência de dados
+- [x] Adicionar validação de formulários
+
+### Registro de Presença
+- [x] Criar tela de seleção de ensaio
+- [x] Implementar lista de integrantes com checkboxes
+- [x] Adicionar estados visuais (presente/ausente/justificado)
+- [x] Implementar salvamento de presença
+- [x] Criar resumo de presença ao final
+
+### Homologação e Testes
+- [x] Criar guia de testes com Expo Go
+- [x] Documentar fluxos de teste
+- [x] Preparar checklist de homologação
