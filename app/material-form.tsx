@@ -1,3 +1,8 @@
+/**
+ * Formulário de Material/Fantasia
+ * Com feedback visual e design consistente
+ */
+
 import { useState } from "react";
 import {
   ScrollView,
@@ -5,12 +10,13 @@ import {
   View,
   TextInput,
   TouchableOpacity,
-  Alert,
   Platform,
 } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { ScreenContainer } from "@/components/screen-container";
 import { useData } from "@/lib/data-context";
+import { useToast } from "@/lib/toast-context";
+import { useEscola } from "@/lib/escola-context";
 import * as Haptics from "expo-haptics";
 import { CATEGORIAS_MATERIAL, TAMANHOS_FANTASIA } from "@/lib/types";
 import type { Material, TamanhoFantasia } from "@/lib/types";
@@ -19,9 +25,14 @@ export default function MaterialFormScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ id?: string }>();
   const { materiais, blocos, addMaterial, updateMaterial } = useData();
+  const { showSuccess, showError, showWarning } = useToast();
+  const { escola } = useEscola();
 
   const isEditing = !!params.id;
   const materialExistente = isEditing ? materiais.find(m => m.id === params.id) : null;
+
+  // Cor da escola
+  const corPrimaria = escola?.corPrimaria || "#FF6B35";
 
   // Estado do formulário
   const [nome, setNome] = useState(materialExistente?.nome || "");
@@ -40,8 +51,13 @@ export default function MaterialFormScreen() {
 
   // Salvar material
   const handleSave = async () => {
-    if (!isValid) {
-      Alert.alert("Erro", "Preencha o nome e quantidade válida.");
+    if (!nome.trim()) {
+      showError("Erro", "Informe o nome do item.");
+      return;
+    }
+
+    if (!parseInt(quantidadeNecessaria) || parseInt(quantidadeNecessaria) <= 0) {
+      showError("Erro", "A quantidade necessária deve ser maior que zero.");
       return;
     }
 
@@ -66,14 +82,16 @@ export default function MaterialFormScreen() {
 
       if (isEditing && params.id) {
         await updateMaterial(params.id, materialData);
+        showSuccess("Atualizado!", "Item atualizado com sucesso.");
       } else {
         await addMaterial(materialData);
+        showSuccess("Cadastrado!", `${nome} foi adicionado ao almoxarifado.`);
       }
 
       router.back();
     } catch (error) {
       console.error("Erro ao salvar material:", error);
-      Alert.alert("Erro", "Não foi possível salvar o material. Tente novamente.");
+      showError("Erro", "Não foi possível salvar o item. Tente novamente.");
     } finally {
       setIsSaving(false);
     }
@@ -83,43 +101,51 @@ export default function MaterialFormScreen() {
     <ScreenContainer edges={["top", "left", "right", "bottom"]}>
       <View className="flex-1">
         {/* Header */}
-        <View className="flex-row items-center justify-between p-4 border-b border-border">
+        <View className="flex-row items-center justify-between p-4 border-b border-border bg-surface">
           <TouchableOpacity
             onPress={() => router.back()}
-            className="p-2"
+            className="px-3 py-2 rounded-xl bg-background"
             disabled={isSaving}
+            activeOpacity={0.7}
           >
-            <Text className="text-primary text-base">Cancelar</Text>
+            <Text className="text-primary text-base font-medium">← Cancelar</Text>
           </TouchableOpacity>
 
-          <Text className="text-foreground text-lg font-semibold">
-            {isEditing ? "Editar Item" : "Novo Item"}
+          <Text className="text-foreground text-lg font-bold">
+            {isEditing ? "✏️ Editar Item" : "📦 Novo Item"}
           </Text>
 
           <TouchableOpacity
             onPress={handleSave}
-            className="p-2"
-            style={{ opacity: isValid && !isSaving ? 1 : 0.5 }}
+            className="px-4 py-2 rounded-xl"
+            style={{ 
+              backgroundColor: isValid && !isSaving ? corPrimaria : "#ccc",
+              opacity: isValid && !isSaving ? 1 : 0.6 
+            }}
             disabled={!isValid || isSaving}
+            activeOpacity={0.8}
           >
-            <Text className="text-primary text-base font-semibold">
-              {isSaving ? "Salvando..." : "Salvar"}
+            <Text className="text-white text-base font-bold">
+              {isSaving ? "..." : "Salvar"}
             </Text>
           </TouchableOpacity>
         </View>
 
         {/* Formulário */}
-        <ScrollView className="flex-1 p-6">
-          <View className="gap-6">
+        <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
+          <View className="p-6 gap-6">
             {/* Campo: Nome */}
             <View>
-              <Text className="text-foreground text-sm font-medium mb-2">
-                Nome do Item *
-              </Text>
+              <View className="flex-row items-center gap-2 mb-2">
+                <Text className="text-foreground text-base font-semibold">
+                  Nome do Item
+                </Text>
+                <Text className="text-error">*</Text>
+              </View>
               <TextInput
-                className="bg-surface border border-border rounded-xl px-4 py-3 text-foreground text-base"
+                className="bg-surface border border-border rounded-xl px-4 py-4 text-foreground text-lg"
                 placeholder="Ex: Fantasia Ala das Baianas, Surdo..."
-                placeholderTextColor="#687076"
+                placeholderTextColor="#9BA1A6"
                 value={nome}
                 onChangeText={setNome}
                 autoCapitalize="words"
@@ -129,7 +155,7 @@ export default function MaterialFormScreen() {
 
             {/* Campo: Categoria */}
             <View>
-              <Text className="text-foreground text-sm font-medium mb-2">
+              <Text className="text-foreground text-base font-semibold mb-3">
                 Categoria
               </Text>
               <View className="flex-row flex-wrap gap-2">
@@ -142,14 +168,16 @@ export default function MaterialFormScreen() {
                         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                       }
                     }}
-                    className={`px-4 py-2 rounded-full ${
+                    className={`px-5 py-3 rounded-xl ${
                       categoria === cat.value
-                        ? "bg-primary"
+                        ? ""
                         : "bg-surface border border-border"
                     }`}
+                    style={categoria === cat.value ? { backgroundColor: corPrimaria } : {}}
+                    activeOpacity={0.8}
                   >
                     <Text
-                      className={`text-sm font-medium ${
+                      className={`text-base font-semibold ${
                         categoria === cat.value ? "text-white" : "text-foreground"
                       }`}
                     >
@@ -162,37 +190,40 @@ export default function MaterialFormScreen() {
 
             {/* Campo: Descrição */}
             <View>
-              <Text className="text-foreground text-sm font-medium mb-2">
-                Descrição
+              <Text className="text-foreground text-base font-semibold mb-2">
+                📝 Descrição
               </Text>
               <TextInput
-                className="bg-surface border border-border rounded-xl px-4 py-3 text-foreground text-base"
+                className="bg-surface border border-border rounded-xl px-4 py-4 text-foreground text-lg"
                 placeholder="Detalhes sobre o item"
-                placeholderTextColor="#687076"
+                placeholderTextColor="#9BA1A6"
                 value={descricao}
                 onChangeText={setDescricao}
                 multiline
                 numberOfLines={2}
-                style={{ minHeight: 60, textAlignVertical: "top" }}
+                style={{ minHeight: 80, textAlignVertical: "top" }}
               />
             </View>
 
             {/* Seção: Quantidades */}
-            <View className="bg-surface rounded-2xl p-4 border border-border">
-              <Text className="text-foreground text-base font-semibold mb-4">
-                Controle de Estoque
+            <View className="bg-surface rounded-2xl p-5 border border-border">
+              <Text className="text-foreground text-lg font-bold mb-4">
+                📊 Controle de Estoque
               </Text>
 
               <View className="flex-row gap-3">
                 {/* Quantidade Necessária */}
                 <View className="flex-1">
-                  <Text className="text-foreground text-sm font-medium mb-2">
-                    Necessário *
-                  </Text>
+                  <View className="flex-row items-center gap-1 mb-2">
+                    <Text className="text-foreground text-sm font-medium">
+                      Necessário
+                    </Text>
+                    <Text className="text-error">*</Text>
+                  </View>
                   <TextInput
-                    className="bg-background border border-border rounded-xl px-4 py-3 text-foreground text-base text-center"
+                    className="bg-background border border-border rounded-xl px-4 py-4 text-foreground text-lg text-center font-bold"
                     placeholder="0"
-                    placeholderTextColor="#687076"
+                    placeholderTextColor="#9BA1A6"
                     value={quantidadeNecessaria}
                     onChangeText={setQuantidadeNecessaria}
                     keyboardType="numeric"
@@ -205,9 +236,9 @@ export default function MaterialFormScreen() {
                     Disponível
                   </Text>
                   <TextInput
-                    className="bg-background border border-border rounded-xl px-4 py-3 text-foreground text-base text-center"
+                    className="bg-background border border-border rounded-xl px-4 py-4 text-foreground text-lg text-center font-bold"
                     placeholder="0"
-                    placeholderTextColor="#687076"
+                    placeholderTextColor="#9BA1A6"
                     value={quantidadeDisponivel}
                     onChangeText={setQuantidadeDisponivel}
                     keyboardType="numeric"
@@ -220,9 +251,9 @@ export default function MaterialFormScreen() {
                     Em Uso
                   </Text>
                   <TextInput
-                    className="bg-background border border-border rounded-xl px-4 py-3 text-foreground text-base text-center"
+                    className="bg-background border border-border rounded-xl px-4 py-4 text-foreground text-lg text-center font-bold"
                     placeholder="0"
-                    placeholderTextColor="#687076"
+                    placeholderTextColor="#9BA1A6"
                     value={quantidadeEmUso}
                     onChangeText={setQuantidadeEmUso}
                     keyboardType="numeric"
@@ -233,14 +264,14 @@ export default function MaterialFormScreen() {
 
             {/* Campos específicos para Fantasia */}
             {categoria === 'fantasia' && (
-              <View className="bg-surface rounded-2xl p-4 border border-border">
-                <Text className="text-foreground text-base font-semibold mb-4">
-                  Detalhes da Fantasia
+              <View className="bg-surface rounded-2xl p-5 border border-border">
+                <Text className="text-foreground text-lg font-bold mb-4">
+                  👗 Detalhes da Fantasia
                 </Text>
 
                 {/* Tamanho */}
                 <View className="mb-4">
-                  <Text className="text-foreground text-sm font-medium mb-2">
+                  <Text className="text-foreground text-base font-semibold mb-3">
                     Tamanho
                   </Text>
                   <View className="flex-row flex-wrap gap-2">
@@ -253,14 +284,16 @@ export default function MaterialFormScreen() {
                             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                           }
                         }}
-                        className={`px-4 py-2 rounded-full ${
+                        className={`px-5 py-3 rounded-xl ${
                           tamanho === tam.value
-                            ? "bg-primary"
+                            ? ""
                             : "bg-background border border-border"
                         }`}
+                        style={tamanho === tam.value ? { backgroundColor: corPrimaria } : {}}
+                        activeOpacity={0.8}
                       >
                         <Text
-                          className={`text-sm font-medium ${
+                          className={`text-base font-semibold ${
                             tamanho === tam.value ? "text-white" : "text-foreground"
                           }`}
                         >
@@ -273,19 +306,24 @@ export default function MaterialFormScreen() {
 
                 {/* Bloco/Ala */}
                 <View>
-                  <Text className="text-foreground text-sm font-medium mb-2">
+                  <Text className="text-foreground text-base font-semibold mb-3">
                     Bloco/Ala Associado
                   </Text>
                   <View className="gap-2">
                     <TouchableOpacity
                       onPress={() => setBlocoId("")}
-                      className={`p-3 rounded-xl border ${
+                      className={`p-4 rounded-xl border ${
                         !blocoId
-                          ? "bg-primary/10 border-primary"
+                          ? "border-2"
                           : "bg-background border-border"
                       }`}
+                      style={!blocoId ? { 
+                        backgroundColor: corPrimaria + "15",
+                        borderColor: corPrimaria 
+                      } : {}}
+                      activeOpacity={0.8}
                     >
-                      <Text className={`text-sm ${!blocoId ? "text-primary font-medium" : "text-foreground"}`}>
+                      <Text className={`text-base font-medium ${!blocoId ? "text-primary" : "text-foreground"}`}>
                         Nenhum (Item geral)
                       </Text>
                     </TouchableOpacity>
@@ -293,18 +331,23 @@ export default function MaterialFormScreen() {
                       <TouchableOpacity
                         key={bloco.id}
                         onPress={() => setBlocoId(bloco.id)}
-                        className={`flex-row items-center gap-3 p-3 rounded-xl border ${
+                        className={`flex-row items-center gap-3 p-4 rounded-xl border ${
                           blocoId === bloco.id
-                            ? "bg-primary/10 border-primary"
+                            ? "border-2"
                             : "bg-background border-border"
                         }`}
+                        style={blocoId === bloco.id ? { 
+                          backgroundColor: corPrimaria + "15",
+                          borderColor: corPrimaria 
+                        } : {}}
+                        activeOpacity={0.8}
                       >
                         <View
-                          className="w-3 h-3 rounded-full"
-                          style={{ backgroundColor: bloco.cor }}
+                          className="w-4 h-4 rounded-full"
+                          style={{ backgroundColor: bloco.cor || corPrimaria }}
                         />
-                        <Text className={`text-sm flex-1 ${
-                          blocoId === bloco.id ? "text-primary font-medium" : "text-foreground"
+                        <Text className={`text-base font-medium flex-1 ${
+                          blocoId === bloco.id ? "text-primary" : "text-foreground"
                         }`}>
                           {bloco.nome}
                         </Text>
@@ -317,13 +360,13 @@ export default function MaterialFormScreen() {
 
             {/* Campo: Localização */}
             <View>
-              <Text className="text-foreground text-sm font-medium mb-2">
-                Localização no Almoxarifado
+              <Text className="text-foreground text-base font-semibold mb-2">
+                📍 Localização no Almoxarifado
               </Text>
               <TextInput
-                className="bg-surface border border-border rounded-xl px-4 py-3 text-foreground text-base"
+                className="bg-surface border border-border rounded-xl px-4 py-4 text-foreground text-lg"
                 placeholder="Ex: Prateleira A3, Caixa 5..."
-                placeholderTextColor="#687076"
+                placeholderTextColor="#9BA1A6"
                 value={localizacao}
                 onChangeText={setLocalizacao}
                 autoCapitalize="characters"

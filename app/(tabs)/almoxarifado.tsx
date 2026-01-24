@@ -1,18 +1,26 @@
 import { useState } from "react";
-import { ScrollView, Text, View, TouchableOpacity, FlatList, TextInput } from "react-native";
+import { ScrollView, Text, View, TouchableOpacity, FlatList, TextInput, Platform } from "react-native";
 import { useRouter } from "expo-router";
 import { ScreenContainer } from "@/components/screen-container";
 import { useData } from "@/lib/data-context";
+import { useEscola } from "@/lib/escola-context";
+import { useAuth } from "@/lib/auth-context";
 import { CATEGORIAS_MATERIAL } from "@/lib/types";
 import type { Material, CategoriaMaterial } from "@/lib/types";
+import * as Haptics from "expo-haptics";
 
 type FilterCategoria = 'todos' | CategoriaMaterial;
 
 export default function AlmoxarifadoScreen() {
   const router = useRouter();
-  const { materiais, blocos, isLoading } = useData();
+  const { materiais, blocos, entregasFantasias, isLoading } = useData();
+  const { escola } = useEscola();
+  const { temPermissao } = useAuth();
   const [filterCategoria, setFilterCategoria] = useState<FilterCategoria>('todos');
   const [searchQuery, setSearchQuery] = useState("");
+
+  // Cor da escola
+  const corPrimaria = escola?.corPrimaria || "#FF6B35";
 
   // Filtrar materiais
   const materiaisFiltrados = materiais.filter(m => {
@@ -33,6 +41,7 @@ export default function AlmoxarifadoScreen() {
   const totalItens = materiais.length;
   const itensEmFalta = materiais.filter(m => m.quantidadeDisponivel < m.quantidadeNecessaria).length;
   const fantasias = materiais.filter(m => m.categoria === 'fantasia').length;
+  const entregasPendentes = entregasFantasias.filter(e => e.status === 'entregue').length;
 
   // Obter label da categoria
   const getCategoriaLabel = (categoria: CategoriaMaterial) => {
@@ -48,11 +57,28 @@ export default function AlmoxarifadoScreen() {
   };
 
   const handleAddMaterial = () => {
+    if (Platform.OS !== "web") {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
     router.push("/material-form");
   };
 
   const handleMaterialPress = (materialId: string) => {
     router.push(`/material-form?id=${materialId}`);
+  };
+
+  const handleEntregaFantasia = () => {
+    if (Platform.OS !== "web") {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    }
+    router.push("/entrega-fantasia");
+  };
+
+  const handleDevolucaoFantasia = () => {
+    if (Platform.OS !== "web") {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    }
+    router.push("/devolucao-fantasia");
   };
 
   const renderMaterial = ({ item }: { item: Material }) => {
@@ -70,7 +96,7 @@ export default function AlmoxarifadoScreen() {
             <Text className="text-foreground text-lg font-semibold">
               {item.nome}
             </Text>
-            <View className="flex-row items-center gap-2 mt-1">
+            <View className="flex-row items-center gap-2 mt-1 flex-wrap">
               <View className="bg-primary/20 px-2 py-0.5 rounded">
                 <Text className="text-primary text-xs font-medium">
                   {getCategoriaLabel(item.categoria)}
@@ -139,12 +165,15 @@ export default function AlmoxarifadoScreen() {
         <View className="px-6 pt-6 pb-4">
           <View className="flex-row items-center justify-between mb-4">
             <Text className="text-foreground text-3xl font-bold">Estoque</Text>
-            <TouchableOpacity
-              onPress={handleAddMaterial}
-              className="bg-primary w-10 h-10 rounded-full items-center justify-center"
-            >
-              <Text className="text-white text-2xl font-light">+</Text>
-            </TouchableOpacity>
+            {temPermissao("cadastrarMaterial") && (
+              <TouchableOpacity
+                onPress={handleAddMaterial}
+                className="w-10 h-10 rounded-full items-center justify-center"
+                style={{ backgroundColor: corPrimaria }}
+              >
+                <Text className="text-white text-2xl font-light">+</Text>
+              </TouchableOpacity>
+            )}
           </View>
 
           {/* Estatísticas */}
@@ -163,11 +192,42 @@ export default function AlmoxarifadoScreen() {
             </View>
           </View>
 
+          {/* Botões de Entrega e Devolução */}
+          {temPermissao("editarMaterial") && (
+            <View className="flex-row gap-3 mb-4">
+              <TouchableOpacity
+                onPress={handleEntregaFantasia}
+                className="flex-1 p-4 rounded-xl flex-row items-center justify-center gap-2"
+                style={{ backgroundColor: corPrimaria }}
+                activeOpacity={0.8}
+              >
+                <Text className="text-white text-xl">👗</Text>
+                <View>
+                  <Text className="text-white text-sm font-bold">Entregar</Text>
+                  <Text className="text-white/80 text-xs">Fantasia</Text>
+                </View>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={handleDevolucaoFantasia}
+                className="flex-1 p-4 rounded-xl flex-row items-center justify-center gap-2 bg-surface border-2"
+                style={{ borderColor: corPrimaria }}
+                activeOpacity={0.8}
+              >
+                <Text className="text-xl">🔄</Text>
+                <View>
+                  <Text style={{ color: corPrimaria }} className="text-sm font-bold">Devolver</Text>
+                  <Text className="text-muted text-xs">{entregasPendentes} pendentes</Text>
+                </View>
+              </TouchableOpacity>
+            </View>
+          )}
+
           {/* Campo de Busca */}
           <View className="mb-4">
             <TextInput
               className="bg-surface border border-border rounded-xl px-4 py-3 text-foreground text-base"
-              placeholder="Buscar material..."
+              placeholder="🔍 Buscar material..."
               placeholderTextColor="#687076"
               value={searchQuery}
               onChangeText={setSearchQuery}
@@ -181,9 +241,10 @@ export default function AlmoxarifadoScreen() {
                 onPress={() => setFilterCategoria('todos')}
                 className={`px-4 py-2 rounded-full ${
                   filterCategoria === 'todos'
-                    ? 'bg-primary'
+                    ? ''
                     : 'bg-surface border border-border'
                 }`}
+                style={filterCategoria === 'todos' ? { backgroundColor: corPrimaria } : {}}
               >
                 <Text
                   className={`text-sm font-medium ${
@@ -199,9 +260,10 @@ export default function AlmoxarifadoScreen() {
                   onPress={() => setFilterCategoria(cat.value)}
                   className={`px-4 py-2 rounded-full ${
                     filterCategoria === cat.value
-                      ? 'bg-primary'
+                      ? ''
                       : 'bg-surface border border-border'
                   }`}
+                  style={filterCategoria === cat.value ? { backgroundColor: corPrimaria } : {}}
                 >
                   <Text
                     className={`text-sm font-medium ${
@@ -232,10 +294,11 @@ export default function AlmoxarifadoScreen() {
                 ? 'Tente ajustar os filtros ou busca.'
                 : 'Adicione itens ao estoque para começar a gerenciar.'}
             </Text>
-            {!searchQuery && filterCategoria === 'todos' && (
+            {!searchQuery && filterCategoria === 'todos' && temPermissao("cadastrarMaterial") && (
               <TouchableOpacity
                 onPress={handleAddMaterial}
-                className="bg-primary px-6 py-3 rounded-full"
+                className="px-6 py-3 rounded-full"
+                style={{ backgroundColor: corPrimaria }}
               >
                 <Text className="text-white font-semibold">Adicionar Item</Text>
               </TouchableOpacity>

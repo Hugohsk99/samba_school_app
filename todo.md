@@ -273,3 +273,22 @@
 - [x] Garantir que a foto seja salva corretamente
 - [x] Adicionar opção de abrir carteirinha do integrante com QR Code
 
+
+
+## Sprint 8 - Máscaras e Fluxo de Fantasias
+
+### Máscaras em Formulários Restantes
+- [x] Aplicar máscaras de data no formulário de ensaios
+- [x] Aplicar máscaras de horário no formulário de ensaios
+- [x] Aplicar máscaras no formulário de materiais (se aplicável)
+- [x] Garantir consistência de formato em todo o app
+
+### Fluxo de Entrega de Fantasias
+- [x] Criar tela de entrega de fantasia
+- [x] Implementar scanner de QR Code do integrante para entrega
+- [x] Registrar entrega com data, hora e responsável
+- [x] Criar tela de devolução de fantasia
+- [x] Implementar registro de estado de conservação na devolução
+- [ ] Criar histórico de movimentações por fantasia
+- [ ] Adicionar relatório de fantasias entregues/devolvidas
+
