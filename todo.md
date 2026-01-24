@@ -161,3 +161,29 @@
 - [x] Adicionar filtros por categoria/tipo de integrante
 - [x] Adicionar busca na listagem de materiais
 - [x] Adicionar filtros por categoria de material
+
+
+## Sprint 4 - Design, Usabilidade e Personalização
+
+### Sistema de Personalização da Escola
+- [x] Criar modelo de dados para configurações da escola (nome, logo, cores)
+- [x] Implementar contexto de personalização com persistência
+- [x] Criar tela de cadastro/edição da escola de samba
+- [x] Implementar seletor de cores personalizado
+- [x] Adicionar upload de logo da escola
+- [x] Aplicar cores personalizadas em todo o app dinamicamente
+
+### Tutorial de Onboarding
+- [x] Criar telas de boas-vindas com explicação do app
+- [x] Implementar carrossel de tutorial com imagens ilustrativas
+- [x] Adicionar opção de pular tutorial
+- [x] Salvar estado de "tutorial concluído" no dispositivo
+- [x] Mostrar tutorial apenas na primeira abertura
+
+### Melhorias de Design e Acessibilidade
+- [x] Aumentar tamanho de fontes e botões para melhor legibilidade
+- [x] Melhorar contraste de cores para acessibilidade
+- [x] Adicionar ícones mais intuitivos e descritivos
+- [x] Implementar feedback visual mais claro nas interações
+- [x] Criar tooltips e dicas contextuais
+- [x] Melhorar espaçamento e hierarquia visual

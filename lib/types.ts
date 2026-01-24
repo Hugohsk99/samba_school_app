@@ -319,3 +319,116 @@ export const TIPOS_EVENTO: { value: Evento['tipo']; label: string }[] = [
   { value: 'desfile', label: 'Desfile' },
   { value: 'outro', label: 'Outro' },
 ];
+
+
+// ============================================
+// CONFIGURAÇÃO E PERSONALIZAÇÃO DA ESCOLA
+// ============================================
+
+// Configuração da escola de samba
+export interface EscolaConfig {
+  id: string;
+  nome: string;
+  nomeCompleto?: string;
+  logo?: string; // URI da imagem
+  
+  // Cores personalizadas
+  corPrimaria: string;
+  corSecundaria: string;
+  corAcento?: string;
+  
+  // Informações adicionais
+  fundacao?: string;
+  cidade?: string;
+  bairro?: string;
+  endereco?: string;
+  telefone?: string;
+  email?: string;
+  website?: string;
+  instagram?: string;
+  
+  // Configurações do app
+  onboardingConcluido: boolean;
+  primeiroAcesso: boolean;
+  
+  // Timestamps
+  criadoEm: string;
+  atualizadoEm: string;
+}
+
+// Cores predefinidas para escolas de samba
+export const CORES_PREDEFINIDAS = [
+  { nome: 'Vermelho Carnaval', cor: '#E53935' },
+  { nome: 'Azul Imperial', cor: '#1E88E5' },
+  { nome: 'Verde Esperança', cor: '#43A047' },
+  { nome: 'Dourado', cor: '#FFB300' },
+  { nome: 'Rosa Choque', cor: '#D81B60' },
+  { nome: 'Roxo Majestade', cor: '#8E24AA' },
+  { nome: 'Laranja Vibrante', cor: '#FF6B35' },
+  { nome: 'Branco Puro', cor: '#FAFAFA' },
+  { nome: 'Preto Elegante', cor: '#212121' },
+  { nome: 'Prata', cor: '#9E9E9E' },
+];
+
+// Configuração padrão
+export const ESCOLA_CONFIG_PADRAO: Omit<EscolaConfig, 'id' | 'criadoEm' | 'atualizadoEm'> = {
+  nome: 'Minha Escola de Samba',
+  corPrimaria: '#FF6B35',
+  corSecundaria: '#4ECDC4',
+  onboardingConcluido: false,
+  primeiroAcesso: true,
+};
+
+// Slides do onboarding
+export interface OnboardingSlide {
+  id: number;
+  titulo: string;
+  descricao: string;
+  icone: string;
+  cor: string;
+}
+
+export const ONBOARDING_SLIDES: OnboardingSlide[] = [
+  {
+    id: 1,
+    titulo: 'Bem-vindo ao Gestão Samba!',
+    descricao: 'O aplicativo completo para gerenciar sua escola de samba de forma simples e organizada.',
+    icone: '🎭',
+    cor: '#FF6B35',
+  },
+  {
+    id: 2,
+    titulo: 'Gerencie seus Blocos',
+    descricao: 'Cadastre e organize todos os blocos da escola: Bateria, Passistas, Baianas, Velha Guarda e muito mais.',
+    icone: '👥',
+    cor: '#4ECDC4',
+  },
+  {
+    id: 3,
+    titulo: 'Controle de Integrantes',
+    descricao: 'Cadastre integrantes com todos os dados importantes e acompanhe a presença nos ensaios.',
+    icone: '📋',
+    cor: '#FFE66D',
+  },
+  {
+    id: 4,
+    titulo: 'Check-in com QR Code',
+    descricao: 'Registre presença de forma rápida e prática usando o QR Code único de cada integrante.',
+    icone: '📱',
+    cor: '#95E1D3',
+  },
+  {
+    id: 5,
+    titulo: 'Almoxarifado Digital',
+    descricao: 'Controle fantasias, instrumentos e materiais. Saiba exatamente o que tem disponível.',
+    icone: '📦',
+    cor: '#AA96DA',
+  },
+  {
+    id: 6,
+    titulo: 'Personalize sua Escola',
+    descricao: 'Configure o app com a logo e as cores da sua escola de samba. Deixe com a sua cara!',
+    icone: '🎨',
+    cor: '#F38181',
+  },
+];

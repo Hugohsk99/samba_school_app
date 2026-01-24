@@ -1,17 +1,28 @@
-import { ScrollView, Text, View, TouchableOpacity, ActivityIndicator } from "react-native";
+import { ScrollView, Text, View, TouchableOpacity, ActivityIndicator, Image, Platform } from "react-native";
 import { useRouter } from "expo-router";
 import { ScreenContainer } from "@/components/screen-container";
 import { useData } from "@/lib/data-context";
+import { useEscola } from "@/lib/escola-context";
 import { useMemo } from "react";
+import * as Haptics from "expo-haptics";
 
 export default function HomeScreen() {
   const router = useRouter();
-  const { blocos, integrantes, ensaios, materiais, registrosPresenca, isLoading } = useData();
+  const { blocos, integrantes, ensaios, eventos, materiais, registrosPresenca, isLoading } = useData();
+  const { escola, cores, isFirstAccess } = useEscola();
+
+  // Redirecionar para onboarding se for primeiro acesso
+  // (Comentado por enquanto - pode ser ativado depois)
+  // useEffect(() => {
+  //   if (isFirstAccess && !isLoading) {
+  //     router.replace("/onboarding");
+  //   }
+  // }, [isFirstAccess, isLoading]);
 
   // Calcular estatísticas
   const stats = useMemo(() => {
-    const ensaiosAgendados = ensaios.filter(e => e.status === 'agendado');
-    const proximoEnsaio = ensaiosAgendados[0];
+    const eventosAgendados = eventos.filter(e => e.status === 'agendado');
+    const proximoEvento = eventosAgendados[0];
     
     // Calcular presença média
     const ensaiosComPresenca = ensaios.filter(e => {
@@ -32,130 +43,212 @@ export default function HomeScreen() {
     return {
       totalBlocos: blocos.length,
       totalIntegrantes: integrantes.length,
-      totalEnsaios: ensaios.length,
-      ensaiosAgendados: ensaiosAgendados.length,
-      proximoEnsaio,
+      totalEventos: eventos.length,
+      totalMateriais: materiais.length,
+      eventosAgendados: eventosAgendados.length,
+      proximoEvento,
       presencaMedia,
     };
-  }, [blocos, integrantes, ensaios, registrosPresenca]);
+  }, [blocos, integrantes, ensaios, eventos, materiais, registrosPresenca]);
 
   // Alertas
   const alertas = useMemo(() => {
     const lista = [];
     
-    if (stats.ensaiosAgendados > 0) {
+    if (stats.eventosAgendados > 0 && stats.proximoEvento) {
       lista.push({
         tipo: 'info',
-        titulo: 'Próximo Ensaio',
-        mensagem: `${stats.proximoEnsaio?.data} às ${stats.proximoEnsaio?.horario}`,
-        cor: 'bg-primary/10',
-        textoCor: 'text-primary',
+        titulo: '📅 Próximo Evento',
+        mensagem: `${stats.proximoEvento.titulo} - ${stats.proximoEvento.data}`,
+        cor: cores.primary,
       });
     }
     
     if (blocos.length === 0) {
       lista.push({
         tipo: 'warning',
-        titulo: 'Cadastre seus blocos',
+        titulo: '🎭 Cadastre seus blocos',
         mensagem: 'Comece adicionando os blocos da escola',
-        cor: 'bg-warning/10',
-        textoCor: 'text-warning',
+        cor: '#F59E0B',
       });
     }
     
     if (integrantes.length === 0 && blocos.length > 0) {
       lista.push({
         tipo: 'warning',
-        titulo: 'Adicione integrantes',
+        titulo: '👥 Adicione integrantes',
         mensagem: 'Cadastre os membros de cada bloco',
-        cor: 'bg-warning/10',
-        textoCor: 'text-warning',
+        cor: '#F59E0B',
       });
     }
 
     return lista;
-  }, [stats, blocos, integrantes]);
+  }, [stats, blocos, integrantes, cores]);
+
+  const handlePress = (action: () => void) => {
+    if (Platform.OS !== "web") {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
+    action();
+  };
 
   if (isLoading) {
     return (
       <ScreenContainer className="p-6">
         <View className="flex-1 items-center justify-center">
-          <ActivityIndicator size="large" color="#FF6B35" />
-          <Text className="text-muted mt-4">Carregando dados...</Text>
+          <ActivityIndicator size="large" color={cores.primary} />
+          <Text className="text-muted mt-4 text-lg">Carregando dados...</Text>
         </View>
       </ScreenContainer>
     );
   }
 
   return (
-    <ScreenContainer className="p-6">
-      <ScrollView contentContainerStyle={{ flexGrow: 1, paddingBottom: 24 }}>
-        <View className="flex-1 gap-6">
-          {/* Header */}
-          <View>
-            <Text className="text-3xl font-bold text-foreground">
-              Gestão Samba
-            </Text>
-            <Text className="text-base text-muted mt-1">
-              Painel de controle da escola
-            </Text>
+    <ScreenContainer className="p-0">
+      <ScrollView 
+        contentContainerStyle={{ flexGrow: 1, paddingBottom: 100 }}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Header com Logo e Nome da Escola */}
+        <View 
+          className="px-6 pt-6 pb-8 rounded-b-3xl"
+          style={{ backgroundColor: cores.primary }}
+        >
+          <View className="flex-row items-center gap-4 mb-4">
+            {escola?.logo ? (
+              <Image
+                source={{ uri: escola.logo }}
+                className="w-16 h-16 rounded-2xl"
+                resizeMode="cover"
+              />
+            ) : (
+              <View 
+                className="w-16 h-16 rounded-2xl items-center justify-center"
+                style={{ backgroundColor: 'rgba(255,255,255,0.2)' }}
+              >
+                <Text className="text-3xl">🎭</Text>
+              </View>
+            )}
+            <View className="flex-1">
+              <Text className="text-white text-2xl font-bold">
+                {escola?.nome || 'Gestão Samba'}
+              </Text>
+              <Text className="text-white/80 text-base">
+                Painel de controle
+              </Text>
+            </View>
+            <TouchableOpacity
+              onPress={() => handlePress(() => router.push("/configuracoes"))}
+              className="w-12 h-12 rounded-full items-center justify-center"
+              style={{ backgroundColor: 'rgba(255,255,255,0.2)' }}
+            >
+              <Text className="text-2xl">⚙️</Text>
+            </TouchableOpacity>
           </View>
 
-          {/* Cards de Estatísticas */}
+          {/* Botão de Tutorial */}
+          <TouchableOpacity
+            onPress={() => handlePress(() => router.push("/onboarding"))}
+            className="flex-row items-center gap-2 bg-white/20 px-4 py-3 rounded-xl"
+          >
+            <Text className="text-xl">📖</Text>
+            <Text className="text-white font-medium text-base flex-1">
+              Ver Tutorial do Aplicativo
+            </Text>
+            <Text className="text-white/80">→</Text>
+          </TouchableOpacity>
+        </View>
+
+        <View className="px-6 -mt-4 gap-6">
+          {/* Cards de Estatísticas - Design Maior e Mais Legível */}
           <View className="flex-row flex-wrap gap-3">
             <TouchableOpacity
-              onPress={() => router.push("/(tabs)/blocos")}
-              className="flex-1 min-w-[45%] bg-surface rounded-2xl p-4 border border-border active:opacity-70"
+              onPress={() => handlePress(() => router.push("/(tabs)/blocos"))}
+              className="flex-1 min-w-[45%] bg-surface rounded-3xl p-5 border border-border"
+              activeOpacity={0.7}
             >
-              <Text className="text-muted text-sm">Blocos</Text>
-              <Text className="text-foreground text-3xl font-bold mt-1">
+              <View 
+                className="w-14 h-14 rounded-2xl items-center justify-center mb-3"
+                style={{ backgroundColor: `${cores.primary}20` }}
+              >
+                <Text className="text-3xl">🎭</Text>
+              </View>
+              <Text className="text-muted text-base font-medium">Blocos</Text>
+              <Text className="text-foreground text-4xl font-bold mt-1">
                 {stats.totalBlocos}
               </Text>
             </TouchableOpacity>
 
             <TouchableOpacity
-              onPress={() => router.push("/(tabs)/blocos")}
-              className="flex-1 min-w-[45%] bg-surface rounded-2xl p-4 border border-border active:opacity-70"
+              onPress={() => handlePress(() => router.push("/integrantes"))}
+              className="flex-1 min-w-[45%] bg-surface rounded-3xl p-5 border border-border"
+              activeOpacity={0.7}
             >
-              <Text className="text-muted text-sm">Integrantes</Text>
-              <Text className="text-foreground text-3xl font-bold mt-1">
+              <View 
+                className="w-14 h-14 rounded-2xl items-center justify-center mb-3"
+                style={{ backgroundColor: `${cores.secondary}20` }}
+              >
+                <Text className="text-3xl">👥</Text>
+              </View>
+              <Text className="text-muted text-base font-medium">Integrantes</Text>
+              <Text className="text-foreground text-4xl font-bold mt-1">
                 {stats.totalIntegrantes}
               </Text>
             </TouchableOpacity>
 
             <TouchableOpacity
-              onPress={() => router.push("/(tabs)/ensaios")}
-              className="flex-1 min-w-[45%] bg-surface rounded-2xl p-4 border border-border active:opacity-70"
+              onPress={() => handlePress(() => router.push("/(tabs)/eventos"))}
+              className="flex-1 min-w-[45%] bg-surface rounded-3xl p-5 border border-border"
+              activeOpacity={0.7}
             >
-              <Text className="text-muted text-sm">Ensaios</Text>
-              <Text className="text-foreground text-3xl font-bold mt-1">
-                {stats.totalEnsaios}
+              <View 
+                className="w-14 h-14 rounded-2xl items-center justify-center mb-3"
+                style={{ backgroundColor: '#FFE66D20' }}
+              >
+                <Text className="text-3xl">📅</Text>
+              </View>
+              <Text className="text-muted text-base font-medium">Eventos</Text>
+              <Text className="text-foreground text-4xl font-bold mt-1">
+                {stats.totalEventos}
               </Text>
             </TouchableOpacity>
 
-            <View className="flex-1 min-w-[45%] bg-surface rounded-2xl p-4 border border-border">
-              <Text className="text-muted text-sm">Presença Média</Text>
-              <Text className="text-success text-3xl font-bold mt-1">
+            <View className="flex-1 min-w-[45%] bg-surface rounded-3xl p-5 border border-border">
+              <View 
+                className="w-14 h-14 rounded-2xl items-center justify-center mb-3"
+                style={{ backgroundColor: '#22C55E20' }}
+              >
+                <Text className="text-3xl">📊</Text>
+              </View>
+              <Text className="text-muted text-base font-medium">Presença Média</Text>
+              <Text className="text-success text-4xl font-bold mt-1">
                 {stats.presencaMedia > 0 ? `${stats.presencaMedia}%` : '—'}
               </Text>
             </View>
           </View>
 
-          {/* Alertas */}
+          {/* Alertas - Design Maior */}
           {alertas.length > 0 && (
-            <View className="gap-3">
-              <Text className="text-foreground text-lg font-semibold">
-                Alertas
+            <View className="gap-4">
+              <Text className="text-foreground text-xl font-bold">
+                📢 Alertas
               </Text>
               {alertas.map((alerta, index) => (
                 <View
                   key={index}
-                  className={`${alerta.cor} rounded-xl p-4`}
+                  className="rounded-2xl p-5"
+                  style={{ backgroundColor: `${alerta.cor}15` }}
                 >
-                  <Text className={`${alerta.textoCor} font-semibold`}>
+                  <Text 
+                    className="font-bold text-lg"
+                    style={{ color: alerta.cor }}
+                  >
                     {alerta.titulo}
                   </Text>
-                  <Text className={`${alerta.textoCor} text-sm mt-1 opacity-80`}>
+                  <Text 
+                    className="text-base mt-2"
+                    style={{ color: alerta.cor, opacity: 0.8 }}
+                  >
                     {alerta.mensagem}
                   </Text>
                 </View>
@@ -163,87 +256,152 @@ export default function HomeScreen() {
             </View>
           )}
 
-          {/* Ações Rápidas */}
-          <View className="gap-3">
-            <Text className="text-foreground text-lg font-semibold">
-              Ações Rápidas
+          {/* Ações Rápidas - Botões Maiores */}
+          <View className="gap-4">
+            <Text className="text-foreground text-xl font-bold">
+              ⚡ Ações Rápidas
             </Text>
-            <View className="flex-row gap-3">
+            <View className="gap-3">
               <TouchableOpacity
-                onPress={() => router.push("/bloco-form")}
-                className="flex-1 bg-primary rounded-xl py-4 items-center active:opacity-80"
+                onPress={() => handlePress(() => router.push("/bloco-form"))}
+                className="flex-row items-center gap-4 rounded-2xl p-5"
+                style={{ backgroundColor: cores.primary }}
+                activeOpacity={0.8}
               >
-                <Text className="text-white text-2xl mb-1">+</Text>
-                <Text className="text-white text-sm font-medium">
-                  Novo Bloco
-                </Text>
+                <View className="w-14 h-14 rounded-2xl bg-white/20 items-center justify-center">
+                  <Text className="text-3xl">➕</Text>
+                </View>
+                <View className="flex-1">
+                  <Text className="text-white text-lg font-bold">
+                    Novo Bloco
+                  </Text>
+                  <Text className="text-white/80 text-base">
+                    Adicionar um novo bloco à escola
+                  </Text>
+                </View>
+                <Text className="text-white text-2xl">→</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
-                onPress={() => router.push("/ensaio-form")}
-                className="flex-1 bg-surface border border-border rounded-xl py-4 items-center active:opacity-80"
+                onPress={() => handlePress(() => router.push("/evento-form"))}
+                className="flex-row items-center gap-4 bg-surface border border-border rounded-2xl p-5"
+                activeOpacity={0.8}
               >
-                <Text className="text-foreground text-2xl mb-1">📅</Text>
-                <Text className="text-foreground text-sm font-medium">
-                  Novo Ensaio
-                </Text>
+                <View 
+                  className="w-14 h-14 rounded-2xl items-center justify-center"
+                  style={{ backgroundColor: `${cores.secondary}20` }}
+                >
+                  <Text className="text-3xl">📅</Text>
+                </View>
+                <View className="flex-1">
+                  <Text className="text-foreground text-lg font-bold">
+                    Novo Evento
+                  </Text>
+                  <Text className="text-muted text-base">
+                    Agendar ensaio, reunião ou feijoada
+                  </Text>
+                </View>
+                <Text className="text-muted text-2xl">→</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
-                onPress={() => router.push("/integrante-form")}
-                className="flex-1 bg-surface border border-border rounded-xl py-4 items-center active:opacity-80"
+                onPress={() => handlePress(() => router.push("/integrante-form"))}
+                className="flex-row items-center gap-4 bg-surface border border-border rounded-2xl p-5"
+                activeOpacity={0.8}
               >
-                <Text className="text-foreground text-2xl mb-1">👤</Text>
-                <Text className="text-foreground text-sm font-medium">
-                  Integrante
-                </Text>
+                <View 
+                  className="w-14 h-14 rounded-2xl items-center justify-center"
+                  style={{ backgroundColor: '#AA96DA20' }}
+                >
+                  <Text className="text-3xl">👤</Text>
+                </View>
+                <View className="flex-1">
+                  <Text className="text-foreground text-lg font-bold">
+                    Novo Integrante
+                  </Text>
+                  <Text className="text-muted text-base">
+                    Cadastrar membro da escola
+                  </Text>
+                </View>
+                <Text className="text-muted text-2xl">→</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={() => handlePress(() => router.push("/material-form"))}
+                className="flex-row items-center gap-4 bg-surface border border-border rounded-2xl p-5"
+                activeOpacity={0.8}
+              >
+                <View 
+                  className="w-14 h-14 rounded-2xl items-center justify-center"
+                  style={{ backgroundColor: '#F3818120' }}
+                >
+                  <Text className="text-3xl">📦</Text>
+                </View>
+                <View className="flex-1">
+                  <Text className="text-foreground text-lg font-bold">
+                    Novo Material
+                  </Text>
+                  <Text className="text-muted text-base">
+                    Adicionar fantasia ou instrumento
+                  </Text>
+                </View>
+                <Text className="text-muted text-2xl">→</Text>
               </TouchableOpacity>
             </View>
           </View>
 
-          {/* Próximos Ensaios */}
-          {stats.ensaiosAgendados > 0 && (
-            <View className="gap-3">
+          {/* Próximos Eventos */}
+          {stats.eventosAgendados > 0 && (
+            <View className="gap-4">
               <View className="flex-row items-center justify-between">
-                <Text className="text-foreground text-lg font-semibold">
-                  Próximos Ensaios
+                <Text className="text-foreground text-xl font-bold">
+                  📆 Próximos Eventos
                 </Text>
-                <TouchableOpacity onPress={() => router.push("/(tabs)/ensaios")}>
-                  <Text className="text-primary text-sm">Ver todos</Text>
+                <TouchableOpacity onPress={() => handlePress(() => router.push("/(tabs)/eventos"))}>
+                  <Text className="text-base font-medium" style={{ color: cores.primary }}>
+                    Ver todos →
+                  </Text>
                 </TouchableOpacity>
               </View>
 
-              {ensaios
+              {eventos
                 .filter(e => e.status === 'agendado')
                 .slice(0, 3)
-                .map((ensaio) => (
+                .map((evento) => (
                   <TouchableOpacity
-                    key={ensaio.id}
-                    onPress={() => router.push({
-                      pathname: "/registro-presenca",
-                      params: { ensaioId: ensaio.id },
-                    })}
-                    className="bg-surface rounded-xl p-4 border border-border flex-row items-center gap-4 active:opacity-70"
+                    key={evento.id}
+                    onPress={() => handlePress(() => router.push({
+                      pathname: "/evento-detalhes",
+                      params: { id: evento.id },
+                    }))}
+                    className="bg-surface rounded-2xl p-5 border border-border flex-row items-center gap-4"
+                    activeOpacity={0.7}
                   >
-                    <View className="items-center">
+                    <View 
+                      className="w-16 h-16 rounded-2xl items-center justify-center"
+                      style={{ backgroundColor: `${cores.primary}15` }}
+                    >
                       <Text className="text-foreground text-xl font-bold">
-                        {ensaio.data.split(' ')[0]}
+                        {evento.data.split('/')[0]}
                       </Text>
-                      <Text className="text-muted text-xs">
-                        {ensaio.data.split(' ')[1]}
+                      <Text className="text-muted text-sm">
+                        {evento.data.split('/')[1]}
                       </Text>
                     </View>
                     <View className="flex-1">
-                      <Text className="text-foreground font-medium">
-                        {ensaio.descricao || 'Ensaio'}
+                      <Text className="text-foreground text-lg font-bold">
+                        {evento.titulo}
                       </Text>
-                      <Text className="text-muted text-sm">
-                        {ensaio.horario} • {ensaio.local}
+                      <Text className="text-muted text-base">
+                        {evento.horario} • {evento.local}
                       </Text>
                     </View>
-                    <View className="bg-primary px-3 py-1 rounded-full">
-                      <Text className="text-white text-xs font-semibold">
-                        AGENDADO
+                    <View 
+                      className="px-4 py-2 rounded-full"
+                      style={{ backgroundColor: cores.primary }}
+                    >
+                      <Text className="text-white text-sm font-bold">
+                        {evento.tipo.toUpperCase()}
                       </Text>
                     </View>
                   </TouchableOpacity>
@@ -253,40 +411,43 @@ export default function HomeScreen() {
 
           {/* Blocos Recentes */}
           {blocos.length > 0 && (
-            <View className="gap-3">
+            <View className="gap-4">
               <View className="flex-row items-center justify-between">
-                <Text className="text-foreground text-lg font-semibold">
-                  Blocos
+                <Text className="text-foreground text-xl font-bold">
+                  🎭 Blocos
                 </Text>
-                <TouchableOpacity onPress={() => router.push("/(tabs)/blocos")}>
-                  <Text className="text-primary text-sm">Ver todos</Text>
+                <TouchableOpacity onPress={() => handlePress(() => router.push("/(tabs)/blocos"))}>
+                  <Text className="text-base font-medium" style={{ color: cores.primary }}>
+                    Ver todos →
+                  </Text>
                 </TouchableOpacity>
               </View>
 
               <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                <View className="flex-row gap-3">
+                <View className="flex-row gap-4">
                   {blocos.slice(0, 5).map((bloco) => (
                     <TouchableOpacity
                       key={bloco.id}
-                      onPress={() => router.push({
+                      onPress={() => handlePress(() => router.push({
                         pathname: "/bloco-detalhes",
                         params: { id: bloco.id },
-                      })}
-                      className="bg-surface rounded-xl p-4 border border-border w-36 active:opacity-70"
+                      }))}
+                      className="bg-surface rounded-2xl p-5 border border-border w-44"
+                      activeOpacity={0.7}
                     >
                       <View
-                        className="w-10 h-10 rounded-full items-center justify-center mb-3"
+                        className="w-14 h-14 rounded-2xl items-center justify-center mb-4"
                         style={{ backgroundColor: `${bloco.cor}20` }}
                       >
                         <View
-                          className="w-3 h-3 rounded-full"
+                          className="w-5 h-5 rounded-full"
                           style={{ backgroundColor: bloco.cor }}
                         />
                       </View>
-                      <Text className="text-foreground font-semibold" numberOfLines={1}>
+                      <Text className="text-foreground text-lg font-bold" numberOfLines={1}>
                         {bloco.nome}
                       </Text>
-                      <Text className="text-muted text-xs mt-0.5" numberOfLines={1}>
+                      <Text className="text-muted text-base mt-1" numberOfLines={1}>
                         {bloco.responsavel}
                       </Text>
                     </TouchableOpacity>

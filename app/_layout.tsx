@@ -9,6 +9,7 @@ import { Platform } from "react-native";
 import "@/lib/_core/nativewind-pressable";
 import { ThemeProvider } from "@/lib/theme-provider";
 import { DataProvider } from "@/lib/data-context";
+import { EscolaProvider } from "@/lib/escola-context";
 import {
   SafeAreaFrameContext,
   SafeAreaInsetsContext,
@@ -101,24 +102,28 @@ export default function RootLayout() {
   if (shouldOverrideSafeArea) {
     return (
       <ThemeProvider>
-        <DataProvider>
-          <SafeAreaProvider initialMetrics={providerInitialMetrics}>
-            <SafeAreaFrameContext.Provider value={frame}>
-              <SafeAreaInsetsContext.Provider value={insets}>
-                {content}
-              </SafeAreaInsetsContext.Provider>
-            </SafeAreaFrameContext.Provider>
-          </SafeAreaProvider>
-        </DataProvider>
+        <EscolaProvider>
+          <DataProvider>
+            <SafeAreaProvider initialMetrics={providerInitialMetrics}>
+              <SafeAreaFrameContext.Provider value={frame}>
+                <SafeAreaInsetsContext.Provider value={insets}>
+                  {content}
+                </SafeAreaInsetsContext.Provider>
+              </SafeAreaFrameContext.Provider>
+            </SafeAreaProvider>
+          </DataProvider>
+        </EscolaProvider>
       </ThemeProvider>
     );
   }
 
   return (
     <ThemeProvider>
-      <DataProvider>
-        <SafeAreaProvider initialMetrics={providerInitialMetrics}>{content}</SafeAreaProvider>
-      </DataProvider>
+      <EscolaProvider>
+        <DataProvider>
+          <SafeAreaProvider initialMetrics={providerInitialMetrics}>{content}</SafeAreaProvider>
+        </DataProvider>
+      </EscolaProvider>
     </ThemeProvider>
   );
 }
