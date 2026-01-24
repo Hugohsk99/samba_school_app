@@ -259,3 +259,17 @@
 - [ ] Ocultar/desabilitar funcionalidades baseado no nível de acesso
 - [x] Criar tela de login/seleção de perfil
 
+
+
+## Sprint 7 - Correções de Bugs
+
+### Correções no Formulário de Eventos
+- [x] Adicionar máscara de data (DD/MM/AAAA) no campo de data do evento
+- [x] Adicionar máscara de horário (HH:MM) no campo de horário do evento
+- [x] Garantir formato brasileiro em todas as datas e horários
+
+### Correções na Foto de Integrantes
+- [x] Corrigir funcionalidade da câmera para abrir a câmera do celular
+- [x] Garantir que a foto seja salva corretamente
+- [x] Adicionar opção de abrir carteirinha do integrante com QR Code
+

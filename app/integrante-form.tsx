@@ -102,26 +102,48 @@ export default function IntegranteFormScreen() {
 
   // Tirar foto com câmera
   const handleTakeFoto = async () => {
+    // Verificar se estamos na web (câmera não funciona na web)
+    if (Platform.OS === "web") {
+      showWarning(
+        "Câmera indisponível", 
+        "A câmera não está disponível na versão web. Por favor, use a opção Galeria ou teste no aplicativo Expo Go no seu celular."
+      );
+      return;
+    }
+
     setIsSelectingImage(true);
     try {
+      // Solicitar permissão da câmera
       const { status } = await ImagePicker.requestCameraPermissionsAsync();
+      
       if (status !== "granted") {
-        showWarning("Permissão necessária", "Permita acesso à câmera para tirar foto.");
+        showWarning(
+          "Permissão necessária", 
+          "Para tirar fotos, você precisa permitir o acesso à câmera nas configurações do seu dispositivo."
+        );
+        setIsSelectingImage(false);
         return;
       }
 
+      // Abrir câmera
       const result = await ImagePicker.launchCameraAsync({
         allowsEditing: true,
         aspect: [1, 1],
         quality: 0.8,
+        cameraType: ImagePicker.CameraType.front, // Câmera frontal para selfie
       });
 
-      if (!result.canceled && result.assets[0]) {
+      if (!result.canceled && result.assets && result.assets[0]) {
         setFoto(result.assets[0].uri);
-        showSuccess("Foto capturada", "A foto foi adicionada com sucesso.");
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        showSuccess("Foto capturada!", "A foto foi adicionada com sucesso.");
       }
     } catch (error) {
-      showError("Erro", "Não foi possível capturar a foto.");
+      console.error("Erro ao capturar foto:", error);
+      showError(
+        "Erro ao abrir câmera", 
+        "Não foi possível acessar a câmera. Verifique as permissões do aplicativo."
+      );
     } finally {
       setIsSelectingImage(false);
     }
