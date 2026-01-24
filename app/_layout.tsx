@@ -10,6 +10,7 @@ import "@/lib/_core/nativewind-pressable";
 import { ThemeProvider } from "@/lib/theme-provider";
 import { DataProvider } from "@/lib/data-context";
 import { EscolaProvider } from "@/lib/escola-context";
+import { ToastProvider } from "@/lib/toast-context";
 import {
   SafeAreaFrameContext,
   SafeAreaInsetsContext,
@@ -104,13 +105,15 @@ export default function RootLayout() {
       <ThemeProvider>
         <EscolaProvider>
           <DataProvider>
-            <SafeAreaProvider initialMetrics={providerInitialMetrics}>
-              <SafeAreaFrameContext.Provider value={frame}>
-                <SafeAreaInsetsContext.Provider value={insets}>
-                  {content}
-                </SafeAreaInsetsContext.Provider>
-              </SafeAreaFrameContext.Provider>
-            </SafeAreaProvider>
+            <ToastProvider>
+              <SafeAreaProvider initialMetrics={providerInitialMetrics}>
+                <SafeAreaFrameContext.Provider value={frame}>
+                  <SafeAreaInsetsContext.Provider value={insets}>
+                    {content}
+                  </SafeAreaInsetsContext.Provider>
+                </SafeAreaFrameContext.Provider>
+              </SafeAreaProvider>
+            </ToastProvider>
           </DataProvider>
         </EscolaProvider>
       </ThemeProvider>
@@ -121,7 +124,9 @@ export default function RootLayout() {
     <ThemeProvider>
       <EscolaProvider>
         <DataProvider>
-          <SafeAreaProvider initialMetrics={providerInitialMetrics}>{content}</SafeAreaProvider>
+          <ToastProvider>
+            <SafeAreaProvider initialMetrics={providerInitialMetrics}>{content}</SafeAreaProvider>
+          </ToastProvider>
         </DataProvider>
       </EscolaProvider>
     </ThemeProvider>

@@ -94,6 +94,13 @@ interface DataContextType {
 
   // Funções utilitárias
   refreshData: () => Promise<void>;
+  
+  // Funções de gestão de dados
+  setBlocos: (blocos: Bloco[]) => Promise<void>;
+  setIntegrantes: (integrantes: Integrante[]) => Promise<void>;
+  setEventos: (eventos: Evento[]) => Promise<void>;
+  setMateriais: (materiais: Material[]) => Promise<void>;
+  clearAllData: () => Promise<void>;
 }
 
 // Criar contexto
@@ -398,6 +405,57 @@ export function DataProvider({ children }: { children: ReactNode }) {
     return entregasFantasias.filter(e => e.status === 'entregue');
   }, [entregasFantasias]);
 
+  // ============================================
+  // FUNÇÕES DE GESTÃO DE DADOS
+  // ============================================
+
+  const setBlocosData = useCallback(async (newBlocos: Bloco[]) => {
+    const AsyncStorage = (await import('@react-native-async-storage/async-storage')).default;
+    await AsyncStorage.setItem('@samba_school:blocos', JSON.stringify(newBlocos));
+    setBlocos(newBlocos);
+  }, []);
+
+  const setIntegrantesData = useCallback(async (newIntegrantes: Integrante[]) => {
+    const AsyncStorage = (await import('@react-native-async-storage/async-storage')).default;
+    await AsyncStorage.setItem('@samba_school:integrantes', JSON.stringify(newIntegrantes));
+    setIntegrantes(newIntegrantes);
+  }, []);
+
+  const setEventosData = useCallback(async (newEventos: Evento[]) => {
+    const AsyncStorage = (await import('@react-native-async-storage/async-storage')).default;
+    await AsyncStorage.setItem('@samba_school:eventos', JSON.stringify(newEventos));
+    setEventos(newEventos);
+  }, []);
+
+  const setMateriaisData = useCallback(async (newMateriais: Material[]) => {
+    const AsyncStorage = (await import('@react-native-async-storage/async-storage')).default;
+    await AsyncStorage.setItem('@samba_school:materiais', JSON.stringify(newMateriais));
+    setMateriais(newMateriais);
+  }, []);
+
+  const clearAllData = useCallback(async () => {
+    // Limpar todos os dados do AsyncStorage
+    const AsyncStorage = (await import('@react-native-async-storage/async-storage')).default;
+    await Promise.all([
+      AsyncStorage.setItem('@samba_school:blocos', '[]'),
+      AsyncStorage.setItem('@samba_school:integrantes', '[]'),
+      AsyncStorage.setItem('@samba_school:ensaios', '[]'),
+      AsyncStorage.setItem('@samba_school:eventos', '[]'),
+      AsyncStorage.setItem('@samba_school:registros_presenca', '[]'),
+      AsyncStorage.setItem('@samba_school:check_ins', '[]'),
+      AsyncStorage.setItem('@samba_school:materiais', '[]'),
+      AsyncStorage.setItem('@samba_school:entregas_fantasias', '[]'),
+    ]);
+    setBlocos([]);
+    setIntegrantes([]);
+    setEnsaios([]);
+    setEventos([]);
+    setRegistrosPresenca([]);
+    setCheckIns([]);
+    setMateriais([]);
+    setEntregasFantasias([]);
+  }, []);
+
   // Valor do contexto
   const value: DataContextType = {
     // Estado
@@ -456,6 +514,13 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
     // Utilitários
     refreshData: loadData,
+    
+    // Gestão de dados
+    setBlocos: setBlocosData,
+    setIntegrantes: setIntegrantesData,
+    setEventos: setEventosData,
+    setMateriais: setMateriaisData,
+    clearAllData,
   };
 
   return (

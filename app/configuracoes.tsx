@@ -8,10 +8,12 @@ import {
   Alert,
   Platform,
   Image,
+  ActivityIndicator,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { ScreenContainer } from "@/components/screen-container";
 import { useEscola } from "@/lib/escola-context";
+import { useToast } from "@/lib/toast-context";
 import * as Haptics from "expo-haptics";
 import * as ImagePicker from "expo-image-picker";
 import { CORES_PREDEFINIDAS } from "@/lib/types";
@@ -19,6 +21,7 @@ import { CORES_PREDEFINIDAS } from "@/lib/types";
 export default function ConfiguracoesScreen() {
   const router = useRouter();
   const { escola, updateEscola, resetConfig, isLoading } = useEscola();
+  const { showSuccess, showError, showWarning, showInfo } = useToast();
 
   // Estados do formulário
   const [nome, setNome] = useState("");
@@ -32,6 +35,7 @@ export default function ConfiguracoesScreen() {
   const [email, setEmail] = useState("");
   const [instagram, setInstagram] = useState("");
   const [isSaving, setIsSaving] = useState(false);
+  const [isSelectingImage, setIsSelectingImage] = useState(false);
 
   // Carregar dados existentes
   useEffect(() => {
@@ -51,13 +55,15 @@ export default function ConfiguracoesScreen() {
 
   // Selecionar logo
   const handleSelectLogo = async () => {
+    setIsSelectingImage(true);
     try {
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (status !== "granted") {
-        Alert.alert(
+        showWarning(
           "Permissão necessária",
           "Precisamos de acesso à galeria para selecionar a logo."
         );
+        setIsSelectingImage(false);
         return;
       }
 
@@ -73,10 +79,15 @@ export default function ConfiguracoesScreen() {
         if (Platform.OS !== "web") {
           Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         }
+        showSuccess("Logo selecionada!", "Clique em Salvar para confirmar a alteração.");
+      } else {
+        showInfo("Seleção cancelada", "Nenhuma imagem foi selecionada.");
       }
     } catch (error) {
       console.error("Erro ao selecionar imagem:", error);
-      Alert.alert("Erro", "Não foi possível selecionar a imagem.");
+      showError("Erro ao selecionar", "Não foi possível selecionar a imagem.");
+    } finally {
+      setIsSelectingImage(false);
     }
   };
 
@@ -86,6 +97,7 @@ export default function ConfiguracoesScreen() {
     if (Platform.OS !== "web") {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     }
+    showInfo("Logo removida", "Clique em Salvar para confirmar a remoção.");
   };
 
   // Selecionar cor
@@ -98,16 +110,21 @@ export default function ConfiguracoesScreen() {
     if (Platform.OS !== "web") {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     }
+    showInfo(
+      `Cor ${tipo === "primaria" ? "primária" : "secundária"} selecionada`,
+      "Clique em Salvar para aplicar."
+    );
   };
 
   // Salvar configurações
   const handleSave = async () => {
     if (!nome.trim()) {
-      Alert.alert("Atenção", "Digite o nome da escola de samba.");
+      showWarning("Campo obrigatório", "Digite o nome da escola de samba.");
       return;
     }
 
     setIsSaving(true);
+    showInfo("Salvando...", "Aguarde enquanto salvamos as configurações.");
 
     try {
       await updateEscola({
@@ -127,12 +144,21 @@ export default function ConfiguracoesScreen() {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       }
 
-      Alert.alert("Sucesso", "Configurações salvas com sucesso!", [
-        { text: "OK", onPress: () => router.back() },
-      ]);
+      showSuccess(
+        "Configurações salvas!",
+        "Todas as alterações foram aplicadas com sucesso."
+      );
+
+      // Aguardar um pouco para o usuário ver a mensagem
+      setTimeout(() => {
+        router.back();
+      }, 1500);
     } catch (error) {
       console.error("Erro ao salvar:", error);
-      Alert.alert("Erro", "Não foi possível salvar as configurações.");
+      showError(
+        "Erro ao salvar",
+        "Não foi possível salvar as configurações. Tente novamente."
+      );
     } finally {
       setIsSaving(false);
     }
@@ -151,9 +177,9 @@ export default function ConfiguracoesScreen() {
           onPress: async () => {
             try {
               await resetConfig();
-              Alert.alert("Sucesso", "Configurações resetadas.");
+              showSuccess("Configurações resetadas", "Todas as configurações foram removidas.");
             } catch (error) {
-              Alert.alert("Erro", "Não foi possível resetar.");
+              showError("Erro ao resetar", "Não foi possível resetar as configurações.");
             }
           },
         },
@@ -165,7 +191,8 @@ export default function ConfiguracoesScreen() {
     return (
       <ScreenContainer edges={["top", "left", "right", "bottom"]}>
         <View className="flex-1 items-center justify-center">
-          <Text className="text-muted text-lg">Carregando...</Text>
+          <ActivityIndicator size="large" color="#FF6B35" />
+          <Text className="text-muted text-lg mt-4">Carregando configurações...</Text>
         </View>
       </ScreenContainer>
     );
@@ -175,35 +202,48 @@ export default function ConfiguracoesScreen() {
     <ScreenContainer edges={["top", "left", "right", "bottom"]}>
       <View className="flex-1">
         {/* Header */}
-        <View className="flex-row items-center justify-between p-4 border-b border-border">
-          <TouchableOpacity onPress={() => router.back()} className="p-2">
-            <Text className="text-primary text-lg">← Voltar</Text>
+        <View className="flex-row items-center justify-between px-4 py-4 border-b border-border bg-surface">
+          <TouchableOpacity 
+            onPress={() => router.back()} 
+            className="flex-row items-center px-3 py-2 rounded-xl bg-background"
+            activeOpacity={0.7}
+          >
+            <Text className="text-primary text-lg font-medium">← Voltar</Text>
           </TouchableOpacity>
 
           <Text className="text-foreground text-xl font-bold">
-            Configurações
+            ⚙️ Configurações
           </Text>
 
           <TouchableOpacity
             onPress={handleSave}
-            className="p-2"
-            style={{ opacity: isSaving ? 0.5 : 1 }}
+            className="px-4 py-2 rounded-xl"
+            style={{ 
+              backgroundColor: isSaving ? "#ccc" : "#22C55E",
+              opacity: isSaving ? 0.7 : 1 
+            }}
             disabled={isSaving}
+            activeOpacity={0.8}
           >
-            <Text className="text-primary text-lg font-semibold">
-              {isSaving ? "Salvando..." : "Salvar"}
-            </Text>
+            {isSaving ? (
+              <View className="flex-row items-center gap-2">
+                <ActivityIndicator size="small" color="#fff" />
+                <Text className="text-white text-lg font-bold">Salvando...</Text>
+              </View>
+            ) : (
+              <Text className="text-white text-lg font-bold">✓ Salvar</Text>
+            )}
           </TouchableOpacity>
         </View>
 
         <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
-          <View className="p-6 gap-8">
+          <View className="p-6 gap-8 pb-32">
             {/* Seção: Logo da Escola */}
-            <View>
-              <Text className="text-foreground text-xl font-bold mb-4">
+            <View className="bg-surface rounded-2xl p-6 border border-border">
+              <Text className="text-foreground text-xl font-bold mb-2">
                 🎭 Logo da Escola
               </Text>
-              <Text className="text-muted text-base mb-4">
+              <Text className="text-muted text-base mb-6">
                 A logo aparecerá no topo do aplicativo e identificará sua escola.
               </Text>
 
@@ -211,7 +251,7 @@ export default function ConfiguracoesScreen() {
                 {logo ? (
                   <View className="items-center gap-4">
                     <View
-                      className="w-32 h-32 rounded-2xl overflow-hidden border-4"
+                      className="w-36 h-36 rounded-2xl overflow-hidden border-4"
                       style={{ borderColor: corPrimaria }}
                     >
                       <Image
@@ -223,17 +263,26 @@ export default function ConfiguracoesScreen() {
                     <View className="flex-row gap-3">
                       <TouchableOpacity
                         onPress={handleSelectLogo}
-                        className="bg-primary px-5 py-3 rounded-xl"
+                        className="bg-primary px-6 py-4 rounded-xl flex-row items-center gap-2"
+                        disabled={isSelectingImage}
+                        activeOpacity={0.8}
                       >
-                        <Text className="text-white font-semibold text-base">
-                          Trocar Logo
+                        {isSelectingImage ? (
+                          <ActivityIndicator size="small" color="#fff" />
+                        ) : (
+                          <Text className="text-2xl">📷</Text>
+                        )}
+                        <Text className="text-white font-bold text-base">
+                          {isSelectingImage ? "Abrindo..." : "Trocar Logo"}
                         </Text>
                       </TouchableOpacity>
                       <TouchableOpacity
                         onPress={handleRemoveLogo}
-                        className="bg-error/20 px-5 py-3 rounded-xl"
+                        className="bg-error/20 px-6 py-4 rounded-xl flex-row items-center gap-2"
+                        activeOpacity={0.8}
                       >
-                        <Text className="text-error font-semibold text-base">
+                        <Text className="text-2xl">🗑️</Text>
+                        <Text className="text-error font-bold text-base">
                           Remover
                         </Text>
                       </TouchableOpacity>
@@ -242,32 +291,40 @@ export default function ConfiguracoesScreen() {
                 ) : (
                   <TouchableOpacity
                     onPress={handleSelectLogo}
-                    className="w-32 h-32 rounded-2xl bg-surface border-2 border-dashed border-border items-center justify-center"
+                    className="w-36 h-36 rounded-2xl bg-background border-2 border-dashed border-border items-center justify-center"
+                    disabled={isSelectingImage}
+                    activeOpacity={0.8}
                   >
-                    <Text className="text-4xl mb-2">📷</Text>
-                    <Text className="text-muted text-sm text-center">
-                      Adicionar{"\n"}Logo
-                    </Text>
+                    {isSelectingImage ? (
+                      <ActivityIndicator size="large" color="#FF6B35" />
+                    ) : (
+                      <>
+                        <Text className="text-5xl mb-2">📷</Text>
+                        <Text className="text-muted text-base text-center font-medium">
+                          Adicionar{"\n"}Logo
+                        </Text>
+                      </>
+                    )}
                   </TouchableOpacity>
                 )}
               </View>
             </View>
 
             {/* Seção: Informações da Escola */}
-            <View>
-              <Text className="text-foreground text-xl font-bold mb-4">
+            <View className="bg-surface rounded-2xl p-6 border border-border">
+              <Text className="text-foreground text-xl font-bold mb-6">
                 📋 Informações da Escola
               </Text>
 
-              <View className="gap-4">
+              <View className="gap-5">
                 <View>
-                  <Text className="text-foreground text-base font-medium mb-2">
+                  <Text className="text-foreground text-base font-bold mb-2">
                     Nome da Escola *
                   </Text>
                   <TextInput
-                    className="bg-surface border border-border rounded-xl px-4 py-4 text-foreground text-lg"
+                    className="bg-background border border-border rounded-xl px-4 py-4 text-foreground text-lg"
                     placeholder="Ex: Unidos do Samba"
-                    placeholderTextColor="#687076"
+                    placeholderTextColor="#9BA1A6"
                     value={nome}
                     onChangeText={setNome}
                     autoCapitalize="words"
@@ -275,137 +332,54 @@ export default function ConfiguracoesScreen() {
                 </View>
 
                 <View>
-                  <Text className="text-foreground text-base font-medium mb-2">
+                  <Text className="text-foreground text-base font-bold mb-2">
                     Nome Completo (opcional)
                   </Text>
                   <TextInput
-                    className="bg-surface border border-border rounded-xl px-4 py-4 text-foreground text-lg"
-                    placeholder="Ex: Grêmio Recreativo Escola de Samba Unidos do Samba"
-                    placeholderTextColor="#687076"
+                    className="bg-background border border-border rounded-xl px-4 py-4 text-foreground text-lg"
+                    placeholder="Ex: G.R.E.S. Unidos do Samba"
+                    placeholderTextColor="#9BA1A6"
                     value={nomeCompleto}
                     onChangeText={setNomeCompleto}
                     autoCapitalize="words"
                   />
                 </View>
 
-                <View className="flex-row gap-3">
+                <View className="flex-row gap-4">
                   <View className="flex-1">
-                    <Text className="text-foreground text-base font-medium mb-2">
+                    <Text className="text-foreground text-base font-bold mb-2">
                       Cidade
                     </Text>
                     <TextInput
-                      className="bg-surface border border-border rounded-xl px-4 py-4 text-foreground text-lg"
+                      className="bg-background border border-border rounded-xl px-4 py-4 text-foreground text-lg"
                       placeholder="Ex: Rio de Janeiro"
-                      placeholderTextColor="#687076"
+                      placeholderTextColor="#9BA1A6"
                       value={cidade}
                       onChangeText={setCidade}
-                      autoCapitalize="words"
                     />
                   </View>
                   <View className="flex-1">
-                    <Text className="text-foreground text-base font-medium mb-2">
+                    <Text className="text-foreground text-base font-bold mb-2">
                       Bairro
                     </Text>
                     <TextInput
-                      className="bg-surface border border-border rounded-xl px-4 py-4 text-foreground text-lg"
-                      placeholder="Ex: Madureira"
-                      placeholderTextColor="#687076"
+                      className="bg-background border border-border rounded-xl px-4 py-4 text-foreground text-lg"
+                      placeholder="Ex: Centro"
+                      placeholderTextColor="#9BA1A6"
                       value={bairro}
                       onChangeText={setBairro}
-                      autoCapitalize="words"
                     />
                   </View>
                 </View>
-              </View>
-            </View>
 
-            {/* Seção: Cores da Escola */}
-            <View>
-              <Text className="text-foreground text-xl font-bold mb-4">
-                🎨 Cores da Escola
-              </Text>
-              <Text className="text-muted text-base mb-4">
-                Escolha as cores que representam sua escola. Elas serão aplicadas em todo o aplicativo.
-              </Text>
-
-              {/* Cor Primária */}
-              <View className="mb-6">
-                <Text className="text-foreground text-base font-medium mb-3">
-                  Cor Primária (principal)
-                </Text>
-                <View className="flex-row flex-wrap gap-3">
-                  {CORES_PREDEFINIDAS.map((item) => (
-                    <TouchableOpacity
-                      key={item.cor}
-                      onPress={() => handleSelectCor(item.cor, "primaria")}
-                      className={`w-14 h-14 rounded-xl items-center justify-center ${
-                        corPrimaria === item.cor ? "border-4 border-foreground" : ""
-                      }`}
-                      style={{ backgroundColor: item.cor }}
-                    >
-                      {corPrimaria === item.cor && (
-                        <Text className="text-white text-xl">✓</Text>
-                      )}
-                    </TouchableOpacity>
-                  ))}
-                </View>
-                <View
-                  className="mt-3 p-4 rounded-xl"
-                  style={{ backgroundColor: corPrimaria }}
-                >
-                  <Text className="text-white text-center font-semibold text-lg">
-                    Cor Primária Selecionada
-                  </Text>
-                </View>
-              </View>
-
-              {/* Cor Secundária */}
-              <View>
-                <Text className="text-foreground text-base font-medium mb-3">
-                  Cor Secundária (destaque)
-                </Text>
-                <View className="flex-row flex-wrap gap-3">
-                  {CORES_PREDEFINIDAS.map((item) => (
-                    <TouchableOpacity
-                      key={item.cor}
-                      onPress={() => handleSelectCor(item.cor, "secundaria")}
-                      className={`w-14 h-14 rounded-xl items-center justify-center ${
-                        corSecundaria === item.cor ? "border-4 border-foreground" : ""
-                      }`}
-                      style={{ backgroundColor: item.cor }}
-                    >
-                      {corSecundaria === item.cor && (
-                        <Text className="text-white text-xl">✓</Text>
-                      )}
-                    </TouchableOpacity>
-                  ))}
-                </View>
-                <View
-                  className="mt-3 p-4 rounded-xl"
-                  style={{ backgroundColor: corSecundaria }}
-                >
-                  <Text className="text-white text-center font-semibold text-lg">
-                    Cor Secundária Selecionada
-                  </Text>
-                </View>
-              </View>
-            </View>
-
-            {/* Seção: Contato */}
-            <View>
-              <Text className="text-foreground text-xl font-bold mb-4">
-                📞 Contato (opcional)
-              </Text>
-
-              <View className="gap-4">
                 <View>
-                  <Text className="text-foreground text-base font-medium mb-2">
+                  <Text className="text-foreground text-base font-bold mb-2">
                     Telefone
                   </Text>
                   <TextInput
-                    className="bg-surface border border-border rounded-xl px-4 py-4 text-foreground text-lg"
-                    placeholder="(21) 99999-9999"
-                    placeholderTextColor="#687076"
+                    className="bg-background border border-border rounded-xl px-4 py-4 text-foreground text-lg"
+                    placeholder="Ex: (21) 99999-9999"
+                    placeholderTextColor="#9BA1A6"
                     value={telefone}
                     onChangeText={setTelefone}
                     keyboardType="phone-pad"
@@ -413,13 +387,13 @@ export default function ConfiguracoesScreen() {
                 </View>
 
                 <View>
-                  <Text className="text-foreground text-base font-medium mb-2">
+                  <Text className="text-foreground text-base font-bold mb-2">
                     E-mail
                   </Text>
                   <TextInput
-                    className="bg-surface border border-border rounded-xl px-4 py-4 text-foreground text-lg"
-                    placeholder="contato@escola.com.br"
-                    placeholderTextColor="#687076"
+                    className="bg-background border border-border rounded-xl px-4 py-4 text-foreground text-lg"
+                    placeholder="Ex: contato@escola.com.br"
+                    placeholderTextColor="#9BA1A6"
                     value={email}
                     onChangeText={setEmail}
                     keyboardType="email-address"
@@ -428,13 +402,13 @@ export default function ConfiguracoesScreen() {
                 </View>
 
                 <View>
-                  <Text className="text-foreground text-base font-medium mb-2">
+                  <Text className="text-foreground text-base font-bold mb-2">
                     Instagram
                   </Text>
                   <TextInput
-                    className="bg-surface border border-border rounded-xl px-4 py-4 text-foreground text-lg"
-                    placeholder="@suaescola"
-                    placeholderTextColor="#687076"
+                    className="bg-background border border-border rounded-xl px-4 py-4 text-foreground text-lg"
+                    placeholder="Ex: @unidosdosamba"
+                    placeholderTextColor="#9BA1A6"
                     value={instagram}
                     onChangeText={setInstagram}
                     autoCapitalize="none"
@@ -443,15 +417,143 @@ export default function ConfiguracoesScreen() {
               </View>
             </View>
 
-            {/* Botão Resetar */}
-            <View className="pt-4 pb-8">
+            {/* Seção: Cores da Escola */}
+            <View className="bg-surface rounded-2xl p-6 border border-border">
+              <Text className="text-foreground text-xl font-bold mb-2">
+                🎨 Cores da Escola
+              </Text>
+              <Text className="text-muted text-base mb-6">
+                Escolha as cores que representam sua escola. Elas serão aplicadas em todo o aplicativo.
+              </Text>
+
+              {/* Cor Primária */}
+              <View className="mb-6">
+                <Text className="text-foreground text-base font-bold mb-3">
+                  Cor Primária (principal)
+                </Text>
+                <View className="flex-row flex-wrap gap-3">
+                  {CORES_PREDEFINIDAS.map((cor) => (
+                    <TouchableOpacity
+                      key={`primaria-${cor.cor}`}
+                      onPress={() => handleSelectCor(cor.cor, "primaria")}
+                      className={`w-14 h-14 rounded-xl items-center justify-center ${
+                        corPrimaria === cor.cor ? "border-4 border-foreground" : "border-2 border-border"
+                      }`}
+                      style={{ backgroundColor: cor.cor }}
+                      activeOpacity={0.8}
+                    >
+                      {corPrimaria === cor.cor && (
+                        <Text className="text-white text-xl">✓</Text>
+                      )}
+                    </TouchableOpacity>
+                  ))}
+                </View>
+                <View className="flex-row items-center gap-3 mt-3">
+                  <Text className="text-muted text-base">Selecionada:</Text>
+                  <View
+                    className="w-8 h-8 rounded-lg"
+                    style={{ backgroundColor: corPrimaria }}
+                  />
+                  <Text className="text-foreground font-mono text-base">{corPrimaria}</Text>
+                </View>
+              </View>
+
+              {/* Cor Secundária */}
+              <View>
+                <Text className="text-foreground text-base font-bold mb-3">
+                  Cor Secundária (destaque)
+                </Text>
+                <View className="flex-row flex-wrap gap-3">
+                  {CORES_PREDEFINIDAS.map((cor) => (
+                    <TouchableOpacity
+                      key={`secundaria-${cor.cor}`}
+                      onPress={() => handleSelectCor(cor.cor, "secundaria")}
+                      className={`w-14 h-14 rounded-xl items-center justify-center ${
+                        corSecundaria === cor.cor ? "border-4 border-foreground" : "border-2 border-border"
+                      }`}
+                      style={{ backgroundColor: cor.cor }}
+                      activeOpacity={0.8}
+                    >
+                      {corSecundaria === cor.cor && (
+                        <Text className="text-white text-xl">✓</Text>
+                      )}
+                    </TouchableOpacity>
+                  ))}
+                </View>
+                <View className="flex-row items-center gap-3 mt-3">
+                  <Text className="text-muted text-base">Selecionada:</Text>
+                  <View
+                    className="w-8 h-8 rounded-lg"
+                    style={{ backgroundColor: corSecundaria }}
+                  />
+                  <Text className="text-foreground font-mono text-base">{corSecundaria}</Text>
+                </View>
+              </View>
+
+              {/* Preview das Cores */}
+              <View className="mt-6 p-4 rounded-xl" style={{ backgroundColor: corPrimaria }}>
+                <Text className="text-white text-lg font-bold text-center mb-2">
+                  Preview das Cores
+                </Text>
+                <View className="flex-row gap-2 justify-center">
+                  <View
+                    className="px-4 py-2 rounded-lg"
+                    style={{ backgroundColor: corSecundaria }}
+                  >
+                    <Text className="text-white font-semibold">Botão Secundário</Text>
+                  </View>
+                </View>
+              </View>
+            </View>
+
+            {/* Seção: Gestão de Dados */}
+            <View className="bg-surface rounded-2xl p-6 border border-border">
+              <Text className="text-foreground text-xl font-bold mb-2">
+                🗄️ Gestão de Dados
+              </Text>
+              <Text className="text-muted text-base mb-4">
+                Gerencie os dados do aplicativo, carregue dados de exemplo ou limpe tudo.
+              </Text>
+
+              <TouchableOpacity
+                onPress={() => router.push("/gestao-dados")}
+                className="rounded-xl p-4 flex-row items-center gap-3"
+                style={{ backgroundColor: corPrimaria }}
+                activeOpacity={0.8}
+              >
+                <Text className="text-3xl">🗄️</Text>
+                <View className="flex-1">
+                  <Text className="text-white font-bold text-lg">
+                    Abrir Gestão de Dados
+                  </Text>
+                  <Text className="text-white/80 text-base">
+                    Carregar dados de exemplo, limpar dados, etc.
+                  </Text>
+                </View>
+                <Text className="text-white text-2xl">›</Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Seção: Ações */}
+            <View className="bg-surface rounded-2xl p-6 border border-border">
+              <Text className="text-foreground text-xl font-bold mb-4">
+                ⚡ Ações
+              </Text>
+
               <TouchableOpacity
                 onPress={handleReset}
-                className="bg-error/10 p-4 rounded-xl"
+                className="bg-error/10 border border-error/30 rounded-xl p-4 flex-row items-center gap-3"
+                activeOpacity={0.8}
               >
-                <Text className="text-error text-center font-semibold text-lg">
-                  Resetar Todas as Configurações
-                </Text>
+                <Text className="text-3xl">🗑️</Text>
+                <View className="flex-1">
+                  <Text className="text-error font-bold text-lg">
+                    Resetar Configurações
+                  </Text>
+                  <Text className="text-error/70 text-base">
+                    Remove todas as configurações da escola
+                  </Text>
+                </View>
               </TouchableOpacity>
             </View>
           </View>

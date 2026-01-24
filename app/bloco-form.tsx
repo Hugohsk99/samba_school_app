@@ -5,12 +5,13 @@ import {
   View,
   TextInput,
   TouchableOpacity,
-  Alert,
   Platform,
+  ActivityIndicator,
 } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { ScreenContainer } from "@/components/screen-container";
 import { useData } from "@/lib/data-context";
+import { useToast } from "@/lib/toast-context";
 import * as Haptics from "expo-haptics";
 
 // Cores disponíveis para os blocos
@@ -29,6 +30,7 @@ export default function BlocoFormScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ id?: string; mode?: string }>();
   const { blocos, addBloco, updateBloco } = useData();
+  const { showSuccess, showError, showWarning, showInfo } = useToast();
 
   const isEditing = params.mode === "edit" && params.id;
   const blocoExistente = isEditing
@@ -50,12 +52,18 @@ export default function BlocoFormScreen() {
 
   // Salvar bloco
   const handleSave = async () => {
-    if (!isValid) {
-      Alert.alert("Erro", "Preencha todos os campos obrigatórios.");
+    if (!nome.trim()) {
+      showWarning("Campo obrigatório", "Digite o nome do bloco.");
+      return;
+    }
+
+    if (!responsavel.trim()) {
+      showWarning("Campo obrigatório", "Digite o nome do responsável.");
       return;
     }
 
     setIsSaving(true);
+    showInfo("Salvando...", "Aguarde enquanto salvamos o bloco.");
 
     try {
       if (Platform.OS !== "web") {
@@ -70,6 +78,7 @@ export default function BlocoFormScreen() {
           cor,
           tipo,
         });
+        showSuccess("Bloco atualizado!", `"${nome.trim()}" foi atualizado com sucesso.`);
       } else {
         await addBloco({
           nome: nome.trim(),
@@ -78,59 +87,79 @@ export default function BlocoFormScreen() {
           cor,
           tipo,
         });
+        showSuccess("Bloco criado!", `"${nome.trim()}" foi adicionado com sucesso.`);
       }
 
-      router.back();
+      // Aguardar um pouco para o usuário ver a mensagem
+      setTimeout(() => {
+        router.back();
+      }, 1000);
     } catch (error) {
       console.error("Erro ao salvar bloco:", error);
-      Alert.alert("Erro", "Não foi possível salvar o bloco. Tente novamente.");
+      showError("Erro ao salvar", "Não foi possível salvar o bloco. Tente novamente.");
     } finally {
       setIsSaving(false);
     }
+  };
+
+  const handleCancel = () => {
+    if (Platform.OS !== "web") {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
+    router.back();
   };
 
   return (
     <ScreenContainer edges={["top", "left", "right", "bottom"]}>
       <View className="flex-1">
         {/* Header */}
-        <View className="flex-row items-center justify-between p-4 border-b border-border">
+        <View className="flex-row items-center justify-between px-4 py-4 border-b border-border bg-surface">
           <TouchableOpacity
-            onPress={() => router.back()}
-            className="p-2"
-            style={{ opacity: isSaving ? 0.5 : 1 }}
+            onPress={handleCancel}
+            className="flex-row items-center px-3 py-2 rounded-xl bg-background"
             disabled={isSaving}
+            activeOpacity={0.7}
           >
-            <Text className="text-primary text-base">Cancelar</Text>
+            <Text className="text-primary text-lg font-medium">← Cancelar</Text>
           </TouchableOpacity>
 
-          <Text className="text-foreground text-lg font-semibold">
-            {isEditing ? "Editar Bloco" : "Novo Bloco"}
+          <Text className="text-foreground text-xl font-bold">
+            {isEditing ? "✏️ Editar Bloco" : "➕ Novo Bloco"}
           </Text>
 
           <TouchableOpacity
             onPress={handleSave}
-            className="p-2"
-            style={{ opacity: isValid && !isSaving ? 1 : 0.5 }}
+            className="px-4 py-2 rounded-xl"
+            style={{ 
+              backgroundColor: isValid && !isSaving ? "#22C55E" : "#ccc",
+              opacity: isValid && !isSaving ? 1 : 0.7
+            }}
             disabled={!isValid || isSaving}
+            activeOpacity={0.8}
           >
-            <Text className="text-primary text-base font-semibold">
-              {isSaving ? "Salvando..." : "Salvar"}
-            </Text>
+            {isSaving ? (
+              <View className="flex-row items-center gap-2">
+                <ActivityIndicator size="small" color="#fff" />
+                <Text className="text-white text-lg font-bold">Salvando...</Text>
+              </View>
+            ) : (
+              <Text className="text-white text-lg font-bold">✓ Salvar</Text>
+            )}
           </TouchableOpacity>
         </View>
 
         {/* Formulário */}
-        <ScrollView className="flex-1 p-6">
-          <View className="gap-6">
+        <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
+          <View className="p-6 gap-6 pb-32">
             {/* Campo: Nome */}
-            <View>
-              <Text className="text-foreground text-sm font-medium mb-2">
-                Nome do Bloco *
+            <View className="bg-surface rounded-2xl p-5 border border-border">
+              <Text className="text-foreground text-base font-bold mb-3">
+                🎭 Nome do Bloco *
               </Text>
               <TextInput
-                className="bg-surface border border-border rounded-xl px-4 py-3 text-foreground text-base"
+                className="bg-background border border-border rounded-xl px-4 py-4 text-foreground text-lg"
                 placeholder="Ex: Bateria, Passistas, Ala das Baianas"
-                placeholderTextColor="#687076"
+                placeholderTextColor="#9BA1A6"
                 value={nome}
                 onChangeText={setNome}
                 autoCapitalize="words"
@@ -139,21 +168,26 @@ export default function BlocoFormScreen() {
             </View>
 
             {/* Campo: Tipo */}
-            <View>
-              <Text className="text-foreground text-sm font-medium mb-2">
-                Tipo
+            <View className="bg-surface rounded-2xl p-5 border border-border">
+              <Text className="text-foreground text-base font-bold mb-3">
+                📋 Tipo do Bloco
               </Text>
               <View className="flex-row gap-3">
                 <TouchableOpacity
-                  onPress={() => setTipo('ala')}
-                  className={`flex-1 py-3 rounded-xl items-center ${
+                  onPress={() => {
+                    setTipo('ala');
+                    showInfo("Tipo selecionado", "Ala - grupo de desfilantes");
+                  }}
+                  className={`flex-1 py-4 rounded-xl items-center ${
                     tipo === 'ala'
                       ? "bg-primary"
-                      : "bg-surface border border-border"
+                      : "bg-background border border-border"
                   }`}
+                  activeOpacity={0.8}
                 >
+                  <Text className="text-2xl mb-1">👥</Text>
                   <Text
-                    className={`font-medium ${
+                    className={`font-bold text-base ${
                       tipo === 'ala' ? "text-white" : "text-foreground"
                     }`}
                   >
@@ -161,15 +195,20 @@ export default function BlocoFormScreen() {
                   </Text>
                 </TouchableOpacity>
                 <TouchableOpacity
-                  onPress={() => setTipo('segmento')}
-                  className={`flex-1 py-3 rounded-xl items-center ${
+                  onPress={() => {
+                    setTipo('segmento');
+                    showInfo("Tipo selecionado", "Segmento - grupo especializado");
+                  }}
+                  className={`flex-1 py-4 rounded-xl items-center ${
                     tipo === 'segmento'
                       ? "bg-primary"
-                      : "bg-surface border border-border"
+                      : "bg-background border border-border"
                   }`}
+                  activeOpacity={0.8}
                 >
+                  <Text className="text-2xl mb-1">🥁</Text>
                   <Text
-                    className={`font-medium ${
+                    className={`font-bold text-base ${
                       tipo === 'segmento' ? "text-white" : "text-foreground"
                     }`}
                   >
@@ -180,14 +219,14 @@ export default function BlocoFormScreen() {
             </View>
 
             {/* Campo: Responsável */}
-            <View>
-              <Text className="text-foreground text-sm font-medium mb-2">
-                Responsável *
+            <View className="bg-surface rounded-2xl p-5 border border-border">
+              <Text className="text-foreground text-base font-bold mb-3">
+                👤 Responsável *
               </Text>
               <TextInput
-                className="bg-surface border border-border rounded-xl px-4 py-3 text-foreground text-base"
+                className="bg-background border border-border rounded-xl px-4 py-4 text-foreground text-lg"
                 placeholder="Nome do responsável pelo bloco"
-                placeholderTextColor="#687076"
+                placeholderTextColor="#9BA1A6"
                 value={responsavel}
                 onChangeText={setResponsavel}
                 autoCapitalize="words"
@@ -196,26 +235,26 @@ export default function BlocoFormScreen() {
             </View>
 
             {/* Campo: Descrição */}
-            <View>
-              <Text className="text-foreground text-sm font-medium mb-2">
-                Descrição
+            <View className="bg-surface rounded-2xl p-5 border border-border">
+              <Text className="text-foreground text-base font-bold mb-3">
+                📝 Descrição (opcional)
               </Text>
               <TextInput
-                className="bg-surface border border-border rounded-xl px-4 py-3 text-foreground text-base"
+                className="bg-background border border-border rounded-xl px-4 py-4 text-foreground text-lg"
                 placeholder="Descrição ou observações sobre o bloco"
-                placeholderTextColor="#687076"
+                placeholderTextColor="#9BA1A6"
                 value={descricao}
                 onChangeText={setDescricao}
                 multiline
                 numberOfLines={3}
-                style={{ minHeight: 80, textAlignVertical: "top" }}
+                style={{ minHeight: 100, textAlignVertical: "top" }}
               />
             </View>
 
             {/* Campo: Cor */}
-            <View>
-              <Text className="text-foreground text-sm font-medium mb-3">
-                Cor do Bloco
+            <View className="bg-surface rounded-2xl p-5 border border-border">
+              <Text className="text-foreground text-base font-bold mb-3">
+                🎨 Cor do Bloco
               </Text>
               <View className="flex-row flex-wrap gap-3">
                 {CORES_DISPONIVEIS.map((corOption) => (
@@ -226,16 +265,18 @@ export default function BlocoFormScreen() {
                       if (Platform.OS !== "web") {
                         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                       }
+                      showInfo("Cor selecionada", corOption.nome);
                     }}
-                    className={`w-12 h-12 rounded-full items-center justify-center ${
+                    className={`w-14 h-14 rounded-xl items-center justify-center ${
                       cor === corOption.valor
                         ? "border-4 border-foreground"
                         : "border-2 border-border"
                     }`}
                     style={{ backgroundColor: corOption.valor }}
+                    activeOpacity={0.8}
                   >
                     {cor === corOption.valor && (
-                      <Text className="text-white text-lg font-bold">✓</Text>
+                      <Text className="text-white text-xl font-bold">✓</Text>
                     )}
                   </TouchableOpacity>
                 ))}
@@ -243,28 +284,38 @@ export default function BlocoFormScreen() {
             </View>
 
             {/* Preview do Bloco */}
-            <View className="mt-4">
-              <Text className="text-foreground text-sm font-medium mb-3">
-                Pré-visualização
+            <View className="bg-surface rounded-2xl p-5 border border-border">
+              <Text className="text-foreground text-base font-bold mb-3">
+                👁️ Pré-visualização
               </Text>
-              <View className="bg-surface rounded-2xl p-4 border border-border">
+              <View className="bg-background rounded-xl p-4 border border-border">
                 <View className="flex-row items-center gap-4">
                   <View
-                    className="w-14 h-14 rounded-full items-center justify-center"
+                    className="w-16 h-16 rounded-2xl items-center justify-center"
                     style={{ backgroundColor: `${cor}20` }}
                   >
                     <View
-                      className="w-3 h-3 rounded-full"
+                      className="w-5 h-5 rounded-full"
                       style={{ backgroundColor: cor }}
                     />
                   </View>
                   <View className="flex-1">
-                    <Text className="text-foreground text-lg font-semibold">
+                    <Text className="text-foreground text-xl font-bold">
                       {nome || "Nome do Bloco"}
                     </Text>
-                    <Text className="text-muted text-sm mt-0.5">
+                    <Text className="text-muted text-base mt-1">
                       Responsável: {responsavel || "—"}
                     </Text>
+                    <View className="flex-row items-center gap-2 mt-1">
+                      <View 
+                        className="px-2 py-1 rounded-md"
+                        style={{ backgroundColor: `${cor}30` }}
+                      >
+                        <Text className="text-xs font-medium" style={{ color: cor }}>
+                          {tipo === 'ala' ? 'ALA' : 'SEGMENTO'}
+                        </Text>
+                      </View>
+                    </View>
                   </View>
                 </View>
               </View>
