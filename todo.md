@@ -327,10 +327,61 @@
 ### Visualização e Histórico
 - [x] Criar tela de histórico de movimentações por material
 - [x] Mostrar timeline de empréstimos/devoluções
-- [ ] Adicionar filtros por integrante, material e período
+- [x] Adicionar filtros por integrante, material e período
 - [x] Exibir estatísticas de uso (quantas vezes emprestado, tempo médio)
 
 ### Integração e Links
-- [ ] No perfil do integrante, mostrar materiais emprestados atualmente
+- [x] No perfil do integrante, mostrar materiais emprestados atualmente
 - [x] No detalhe do material, mostrar quem está com ele e histórico
 - [x] Criar alertas para materiais com empréstimo prolongado
+
+
+## Sprint 11 - Login de Integrantes, Área Pessoal e Relatórios PDF
+
+### Sistema de Login para Integrantes
+- [x] Criar tela de login prático (CPF + data de nascimento ou código único)
+- [x] Implementar autenticação simples baseada em dados cadastrados
+- [x] Redirecionar para área do integrante após login bem-sucedido
+- [x] Manter sessão do integrante logado
+- [x] Adicionar opção de logout
+
+### Área do Integrante (Acesso Limitado)
+- [x] Criar tela principal do integrante com menu de opções
+- [x] Exibir carteirinha digital com QR Code
+- [x] Mostrar histórico de presença em eventos
+- [x] Listar materiais/fantasias emprestados atualmente
+- [x] Exibir próximos eventos/ensaios agendados
+- [x] Mostrar dados pessoais do integrante
+
+### Edição de Dados Pessoais
+- [x] Criar tela de edição de dados para integrantes (campos limitados)
+- [x] Permitir atualização de telefone, email, endereço
+- [x] Bloquear edição de campos sensíveis (CPF, nome completo)
+- [x] Implementar edição completa para gestores
+- [x] Adicionar validação e feedback visual nas alterações
+
+### Materiais Emprestados no Perfil
+- [x] Mostrar lista de materiais em posse do integrante
+- [x] Exibir data de entrega e responsável
+- [x] Indicar materiais com devolução pendente
+- [x] Criar alerta visual para devoluções atrasadas
+
+### Exportação de Relatórios PDF (Gestores)
+- [ ] Implementar geração de relatório de presença em PDF
+- [ ] Implementar relatório de inventário/estoque em PDF
+- [ ] Implementar relatório de entregas/devoluções em PDF
+- [ ] Adicionar filtros por período e categoria
+- [ ] Restringir acesso a relatórios apenas para gestores/diretoria
+
+### Estrutura de Dados e Relacionamentos
+- [ ] Garantir associação correta entre Material e Integrante via EntregaFantasia
+- [ ] Implementar consultas otimizadas para buscar materiais por integrante
+- [ ] Garantir integridade referencial nos dados
+
+### Exportação de Relatórios em PDF (Sprint 11)
+- [x] Criar tela de geração de relatórios (acesso apenas para gestores)
+- [x] Implementar relatório de presença com ranking de integrantes
+- [x] Implementar relatório de integrantes por categoria
+- [x] Implementar relatório de materiais e empréstimos
+- [x] Implementar relatório de eventos
+- [x] Adicionar opção de compartilhar relatório via WhatsApp/email

@@ -37,7 +37,7 @@ function generateQRCodeUrl(data: string, size: number = 150): string {
 export default function IntegrantePerfilScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ id: string }>();
-  const { integrantes, blocos, deleteIntegrante, checkIns, eventos } = useData();
+  const { integrantes, blocos, deleteIntegrante, checkIns, eventos, entregasFantasias, materiais } = useData();
   const { escola } = useEscola();
   const { showSuccess, showError, showWarning } = useToast();
 
@@ -429,6 +429,90 @@ export default function IntegrantePerfilScreen() {
               </View>
             </View>
           )}
+
+          {/* Materiais Emprestados */}
+          <View className="px-6 pb-6">
+            <View className="bg-surface rounded-2xl p-6 border border-border">
+              <Text className="text-foreground text-lg font-bold mb-4">
+                👗 Materiais/Fantasias Emprestados
+              </Text>
+
+              {(() => {
+                const entregasPendentes = entregasFantasias.filter(
+                  (e) => e.integranteId === integrante.id && e.status === "entregue"
+                );
+                
+                if (entregasPendentes.length > 0) {
+                  return (
+                    <View className="gap-3">
+                      {entregasPendentes.map((entrega) => {
+                        const material = materiais.find((m) => m.id === entrega.materialId);
+                        const diasEmprestado = Math.floor(
+                          (Date.now() - new Date(entrega.dataEntrega).getTime()) / (1000 * 60 * 60 * 24)
+                        );
+                        const atrasado = diasEmprestado > 30;
+                        
+                        return (
+                          <View
+                            key={entrega.id}
+                            className="p-4 bg-background rounded-xl border"
+                            style={{ borderColor: atrasado ? "#EF4444" : "#E5E7EB" }}
+                          >
+                            <View className="flex-row items-center justify-between mb-2">
+                              <Text className="text-foreground font-bold text-base">
+                                {material?.nome || "Material"}
+                              </Text>
+                              {atrasado && (
+                                <View className="bg-error/20 px-2 py-1 rounded-full">
+                                  <Text className="text-error text-xs font-bold">⚠️ Pendente</Text>
+                                </View>
+                              )}
+                            </View>
+                            
+                            <View className="flex-row items-center gap-4">
+                              <View>
+                                <Text className="text-muted text-xs">Categoria</Text>
+                                <Text className="text-foreground text-sm">{material?.categoria || "-"}</Text>
+                              </View>
+                              <View>
+                                <Text className="text-muted text-xs">Tamanho</Text>
+                                <Text className="text-foreground text-sm">{material?.tamanho || "-"}</Text>
+                              </View>
+                              <View>
+                                <Text className="text-muted text-xs">Data Entrega</Text>
+                                <Text className="text-foreground text-sm">
+                                  {new Date(entrega.dataEntrega).toLocaleDateString("pt-BR")}
+                                </Text>
+                              </View>
+                            </View>
+                            
+                            <Text className="text-muted text-xs mt-2">
+                              Há {diasEmprestado} dias emprestado
+                            </Text>
+                          </View>
+                        );
+                      })}
+                      
+                      <View className="items-center mt-2 p-3 bg-warning/10 rounded-xl">
+                        <Text className="text-warning font-semibold">
+                          ⚠️ {entregasPendentes.length} item(s) pendente(s) de devolução
+                        </Text>
+                      </View>
+                    </View>
+                  );
+                } else {
+                  return (
+                    <View className="items-center py-4">
+                      <Text className="text-4xl mb-2">✅</Text>
+                      <Text className="text-muted text-center">
+                        Nenhum material emprestado no momento
+                      </Text>
+                    </View>
+                  );
+                }
+              })()}
+            </View>
+          </View>
 
           {/* Histórico de Presenças */}
           <View className="px-6 pb-6">
