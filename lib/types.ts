@@ -1,31 +1,123 @@
 /**
  * Tipos de dados do aplicativo de gestão de escolas de samba
+ * Baseado no documento de requisitos - Módulos 2, 4 e 5
  */
 
-// Bloco da escola de samba
+// ============================================
+// TIPOS DE CATEGORIAS DE INTEGRANTES
+// ============================================
+
+// Categoria principal do integrante (Módulo 2)
+export type CategoriaIntegrante = 'desfilante' | 'segmento' | 'diretoria';
+
+// Subcategorias para Desfilantes
+export type TipoDesfilante = 'ala_comercial' | 'ala_comunidade';
+
+// Tipos de Segmentos especializados
+export type TipoSegmento = 
+  | 'bateria' 
+  | 'passistas' 
+  | 'baianas' 
+  | 'velha_guarda' 
+  | 'mestre_sala_porta_bandeira'
+  | 'comissao_frente'
+  | 'harmonia'
+  | 'compositores'
+  | 'outro';
+
+// Cargos da Diretoria/Staff
+export type CargoDiretoria = 
+  | 'presidente'
+  | 'vice_presidente'
+  | 'diretor_carnaval'
+  | 'diretor_harmonia'
+  | 'diretor_bateria'
+  | 'diretor_comunicacao'
+  | 'coordenador'
+  | 'staff'
+  | 'outro';
+
+// ============================================
+// ENTIDADES PRINCIPAIS
+// ============================================
+
+// Bloco/Ala da escola de samba
 export interface Bloco {
   id: string;
   nome: string;
   responsavel: string;
   descricao: string;
   cor: string;
+  tipo: 'ala' | 'segmento';
   criadoEm: string;
   atualizadoEm: string;
 }
 
-// Integrante da escola
+// Integrante da escola (Módulo 2 - Aprimorado)
 export interface Integrante {
   id: string;
+  // Dados pessoais básicos
   nome: string;
   telefone: string;
   email: string;
   foto?: string;
+  
+  // Documentos (opcionais para MVP)
+  cpf?: string;
+  rg?: string;
+  
+  // Endereço
+  endereco?: string;
+  bairro?: string;
+  cidade?: string;
+  
+  // Contato de emergência
+  contatoEmergenciaNome?: string;
+  contatoEmergenciaTelefone?: string;
+  
+  // Categorização obrigatória (Módulo 2)
+  categoria: CategoriaIntegrante;
+  
+  // Campos específicos por categoria
+  tipoDesfilante?: TipoDesfilante; // Se categoria = 'desfilante'
+  tipoSegmento?: TipoSegmento;     // Se categoria = 'segmento'
+  cargoDiretoria?: CargoDiretoria; // Se categoria = 'diretoria'
+  
+  // Associações
   blocosIds: string[];
+  
+  // QR Code único para check-in (Módulo 4)
+  qrCodeId: string;
+  
+  // Histórico
+  anoIngresso?: number;
+  observacoes?: string;
+  
+  // Status
+  ativo: boolean;
+  
+  // Timestamps
   criadoEm: string;
   atualizadoEm: string;
 }
 
-// Ensaio da escola
+// Evento da escola (Módulo 4 - Expandido)
+export interface Evento {
+  id: string;
+  titulo: string;
+  tipo: 'ensaio' | 'feijoada' | 'reuniao' | 'desfile' | 'outro';
+  data: string;
+  horario: string;
+  local: string;
+  descricao: string;
+  blocosIds: string[]; // 'todos' ou IDs específicos
+  status: 'agendado' | 'em_andamento' | 'realizado' | 'cancelado';
+  checkInAberto: boolean;
+  criadoEm: string;
+  atualizadoEm: string;
+}
+
+// Ensaio (mantido para compatibilidade)
 export interface Ensaio {
   id: string;
   data: string;
@@ -38,7 +130,18 @@ export interface Ensaio {
   atualizadoEm: string;
 }
 
-// Registro de presença individual
+// Check-in de presença (Módulo 4 - QR Code)
+export interface CheckIn {
+  id: string;
+  eventoId: string;
+  integranteId: string;
+  qrCodeId: string;
+  horarioCheckIn: string;
+  metodo: 'qr_code' | 'manual';
+  registradoPor?: string; // ID do staff que fez o check-in manual
+}
+
+// Registro de presença individual (mantido para compatibilidade)
 export interface RegistroPresenca {
   id: string;
   ensaioId: string;
@@ -48,44 +151,171 @@ export interface RegistroPresenca {
   registradoEm: string;
 }
 
-// Material do almoxarifado
+// ============================================
+// MÓDULO 5: GESTÃO DE FANTASIAS/ALMOXARIFADO
+// ============================================
+
+// Categorias de materiais expandidas
+export type CategoriaMaterial = 
+  | 'fantasia'
+  | 'aderecos'
+  | 'instrumentos'
+  | 'tecidos'
+  | 'ferramentas'
+  | 'decoracao'
+  | 'outros';
+
+// Tamanhos de fantasia
+export type TamanhoFantasia = 'PP' | 'P' | 'M' | 'G' | 'GG' | 'XG' | 'especial';
+
+// Estado de conservação
+export type EstadoConservacao = 'novo' | 'bom' | 'regular' | 'danificado' | 'inutilizavel';
+
+// Material do almoxarifado (Módulo 5 - Aprimorado)
 export interface Material {
   id: string;
   nome: string;
-  categoria: 'fantasias' | 'adereccos' | 'instrumentos' | 'tecidos' | 'outros';
+  categoria: CategoriaMaterial;
+  
+  // Quantidades
   quantidadeDisponivel: number;
   quantidadeEmUso: number;
   quantidadeNecessaria: number;
+  
+  // Para fantasias
+  tamanho?: TamanhoFantasia;
+  alaId?: string; // Associação com ala específica
+  
+  // Detalhes
   foto?: string;
   blocoId?: string;
   descricao: string;
+  localizacao?: string; // Onde está guardado
+  
+  // Timestamps
   criadoEm: string;
   atualizadoEm: string;
+}
+
+// Entrega de fantasia (Módulo 5)
+export interface EntregaFantasia {
+  id: string;
+  materialId: string;
+  integranteId: string;
+  qrCodeIntegrante: string;
+  dataEntrega: string;
+  responsavelEntrega: string;
+  observacaoEntrega?: string;
+  
+  // Devolução
+  dataDevolucao?: string;
+  responsavelDevolucao?: string;
+  estadoConservacao?: EstadoConservacao;
+  observacaoDevolucao?: string;
+  
+  status: 'entregue' | 'devolvido' | 'pendente' | 'extraviado';
 }
 
 // Movimentação de material
 export interface MovimentacaoMaterial {
   id: string;
   materialId: string;
-  tipo: 'entrada' | 'saida';
+  tipo: 'entrada' | 'saida' | 'ajuste';
   quantidade: number;
   responsavel: string;
   observacao: string;
   data: string;
 }
 
-// Estado global do aplicativo
+// ============================================
+// ESTADO GLOBAL
+// ============================================
+
 export interface AppState {
   blocos: Bloco[];
   integrantes: Integrante[];
   ensaios: Ensaio[];
+  eventos: Evento[];
   registrosPresenca: RegistroPresenca[];
+  checkIns: CheckIn[];
   materiais: Material[];
+  entregasFantasias: EntregaFantasia[];
   movimentacoes: MovimentacaoMaterial[];
 }
 
-// Tipos para formulários
+// ============================================
+// TIPOS PARA FORMULÁRIOS
+// ============================================
+
 export type BlocoFormData = Omit<Bloco, 'id' | 'criadoEm' | 'atualizadoEm'>;
-export type IntegranteFormData = Omit<Integrante, 'id' | 'criadoEm' | 'atualizadoEm'>;
+export type IntegranteFormData = Omit<Integrante, 'id' | 'criadoEm' | 'atualizadoEm' | 'qrCodeId'>;
 export type EnsaioFormData = Omit<Ensaio, 'id' | 'criadoEm' | 'atualizadoEm'>;
+export type EventoFormData = Omit<Evento, 'id' | 'criadoEm' | 'atualizadoEm'>;
 export type MaterialFormData = Omit<Material, 'id' | 'criadoEm' | 'atualizadoEm'>;
+
+// ============================================
+// HELPERS E CONSTANTES
+// ============================================
+
+export const CATEGORIAS_INTEGRANTE: { value: CategoriaIntegrante; label: string }[] = [
+  { value: 'desfilante', label: 'Desfilante' },
+  { value: 'segmento', label: 'Segmento' },
+  { value: 'diretoria', label: 'Diretoria/Staff' },
+];
+
+export const TIPOS_DESFILANTE: { value: TipoDesfilante; label: string }[] = [
+  { value: 'ala_comercial', label: 'Ala Comercial' },
+  { value: 'ala_comunidade', label: 'Ala da Comunidade' },
+];
+
+export const TIPOS_SEGMENTO: { value: TipoSegmento; label: string }[] = [
+  { value: 'bateria', label: 'Bateria' },
+  { value: 'passistas', label: 'Passistas' },
+  { value: 'baianas', label: 'Baianas' },
+  { value: 'velha_guarda', label: 'Velha Guarda' },
+  { value: 'mestre_sala_porta_bandeira', label: 'Mestre-Sala e Porta-Bandeira' },
+  { value: 'comissao_frente', label: 'Comissão de Frente' },
+  { value: 'harmonia', label: 'Harmonia' },
+  { value: 'compositores', label: 'Compositores' },
+  { value: 'outro', label: 'Outro' },
+];
+
+export const CARGOS_DIRETORIA: { value: CargoDiretoria; label: string }[] = [
+  { value: 'presidente', label: 'Presidente' },
+  { value: 'vice_presidente', label: 'Vice-Presidente' },
+  { value: 'diretor_carnaval', label: 'Diretor de Carnaval' },
+  { value: 'diretor_harmonia', label: 'Diretor de Harmonia' },
+  { value: 'diretor_bateria', label: 'Diretor de Bateria' },
+  { value: 'diretor_comunicacao', label: 'Diretor de Comunicação' },
+  { value: 'coordenador', label: 'Coordenador' },
+  { value: 'staff', label: 'Staff' },
+  { value: 'outro', label: 'Outro' },
+];
+
+export const CATEGORIAS_MATERIAL: { value: CategoriaMaterial; label: string }[] = [
+  { value: 'fantasia', label: 'Fantasia' },
+  { value: 'aderecos', label: 'Adereços' },
+  { value: 'instrumentos', label: 'Instrumentos' },
+  { value: 'tecidos', label: 'Tecidos' },
+  { value: 'ferramentas', label: 'Ferramentas' },
+  { value: 'decoracao', label: 'Decoração' },
+  { value: 'outros', label: 'Outros' },
+];
+
+export const TAMANHOS_FANTASIA: { value: TamanhoFantasia; label: string }[] = [
+  { value: 'PP', label: 'PP' },
+  { value: 'P', label: 'P' },
+  { value: 'M', label: 'M' },
+  { value: 'G', label: 'G' },
+  { value: 'GG', label: 'GG' },
+  { value: 'XG', label: 'XG' },
+  { value: 'especial', label: 'Especial' },
+];
+
+export const TIPOS_EVENTO: { value: Evento['tipo']; label: string }[] = [
+  { value: 'ensaio', label: 'Ensaio' },
+  { value: 'feijoada', label: 'Feijoada' },
+  { value: 'reuniao', label: 'Reunião' },
+  { value: 'desfile', label: 'Desfile' },
+  { value: 'outro', label: 'Outro' },
+];

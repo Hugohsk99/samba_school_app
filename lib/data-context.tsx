@@ -4,13 +4,26 @@
  */
 
 import React, { createContext, useContext, useEffect, useState, useCallback, ReactNode } from 'react';
-import type { Bloco, Integrante, Ensaio, RegistroPresenca, Material } from './types';
+import type { 
+  Bloco, 
+  Integrante, 
+  Ensaio, 
+  Evento,
+  RegistroPresenca, 
+  CheckIn,
+  Material,
+  EntregaFantasia,
+  CategoriaIntegrante,
+} from './types';
 import { 
   blocosStorage, 
   integrantesStorage, 
-  ensaiosStorage, 
+  ensaiosStorage,
+  eventosStorage,
   presencaStorage,
-  materiaisStorage 
+  checkInsStorage,
+  materiaisStorage,
+  entregasFantasiasStorage,
 } from './storage';
 
 // Tipos do contexto
@@ -19,8 +32,11 @@ interface DataContextType {
   blocos: Bloco[];
   integrantes: Integrante[];
   ensaios: Ensaio[];
+  eventos: Evento[];
   registrosPresenca: RegistroPresenca[];
+  checkIns: CheckIn[];
   materiais: Material[];
+  entregasFantasias: EntregaFantasia[];
   isLoading: boolean;
 
   // Funções de Blocos
@@ -29,15 +45,22 @@ interface DataContextType {
   deleteBloco: (id: string) => Promise<boolean>;
 
   // Funções de Integrantes
-  addIntegrante: (data: Omit<Integrante, 'id' | 'criadoEm' | 'atualizadoEm'>) => Promise<Integrante>;
-  updateIntegrante: (id: string, data: Partial<Omit<Integrante, 'id' | 'criadoEm'>>) => Promise<Integrante | null>;
+  addIntegrante: (data: Omit<Integrante, 'id' | 'criadoEm' | 'atualizadoEm' | 'qrCodeId'>) => Promise<Integrante>;
+  updateIntegrante: (id: string, data: Partial<Omit<Integrante, 'id' | 'criadoEm' | 'qrCodeId'>>) => Promise<Integrante | null>;
   deleteIntegrante: (id: string) => Promise<boolean>;
   getIntegrantesByBloco: (blocoId: string) => Integrante[];
+  getIntegrantesByCategoria: (categoria: CategoriaIntegrante) => Integrante[];
+  getIntegranteByQRCode: (qrCodeId: string) => Integrante | undefined;
 
   // Funções de Ensaios
   addEnsaio: (data: Omit<Ensaio, 'id' | 'criadoEm' | 'atualizadoEm'>) => Promise<Ensaio>;
   updateEnsaio: (id: string, data: Partial<Omit<Ensaio, 'id' | 'criadoEm'>>) => Promise<Ensaio | null>;
   deleteEnsaio: (id: string) => Promise<boolean>;
+
+  // Funções de Eventos
+  addEvento: (data: Omit<Evento, 'id' | 'criadoEm' | 'atualizadoEm'>) => Promise<Evento>;
+  updateEvento: (id: string, data: Partial<Omit<Evento, 'id' | 'criadoEm'>>) => Promise<Evento | null>;
+  deleteEvento: (id: string) => Promise<boolean>;
 
   // Funções de Presença
   registrarPresenca: (
@@ -48,10 +71,26 @@ interface DataContextType {
   ) => Promise<RegistroPresenca>;
   getPresencaByEnsaio: (ensaioId: string) => RegistroPresenca[];
 
+  // Funções de Check-In
+  realizarCheckIn: (eventoId: string, integranteId: string, qrCodeId: string, metodo?: CheckIn['metodo']) => Promise<CheckIn>;
+  getCheckInsByEvento: (eventoId: string) => CheckIn[];
+  verificarCheckIn: (eventoId: string, integranteId: string) => boolean;
+
   // Funções de Materiais
   addMaterial: (data: Omit<Material, 'id' | 'criadoEm' | 'atualizadoEm'>) => Promise<Material>;
   updateMaterial: (id: string, data: Partial<Omit<Material, 'id' | 'criadoEm'>>) => Promise<Material | null>;
   deleteMaterial: (id: string) => Promise<boolean>;
+
+  // Funções de Entregas de Fantasias
+  registrarEntrega: (data: Omit<EntregaFantasia, 'id'>) => Promise<EntregaFantasia>;
+  registrarDevolucao: (
+    id: string, 
+    responsavel: string, 
+    estadoConservacao: EntregaFantasia['estadoConservacao'],
+    observacao?: string
+  ) => Promise<EntregaFantasia | null>;
+  getEntregasByIntegrante: (integranteId: string) => EntregaFantasia[];
+  getEntregasPendentes: () => EntregaFantasia[];
 
   // Funções utilitárias
   refreshData: () => Promise<void>;
@@ -65,8 +104,11 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const [blocos, setBlocos] = useState<Bloco[]>([]);
   const [integrantes, setIntegrantes] = useState<Integrante[]>([]);
   const [ensaios, setEnsaios] = useState<Ensaio[]>([]);
+  const [eventos, setEventos] = useState<Evento[]>([]);
   const [registrosPresenca, setRegistrosPresenca] = useState<RegistroPresenca[]>([]);
+  const [checkIns, setCheckIns] = useState<CheckIn[]>([]);
   const [materiais, setMateriais] = useState<Material[]>([]);
+  const [entregasFantasias, setEntregasFantasias] = useState<EntregaFantasia[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   // Carregar dados iniciais
@@ -77,21 +119,30 @@ export function DataProvider({ children }: { children: ReactNode }) {
         loadedBlocos,
         loadedIntegrantes,
         loadedEnsaios,
+        loadedEventos,
         loadedPresenca,
+        loadedCheckIns,
         loadedMateriais,
+        loadedEntregas,
       ] = await Promise.all([
         blocosStorage.getAll(),
         integrantesStorage.getAll(),
         ensaiosStorage.getAll(),
+        eventosStorage.getAll(),
         presencaStorage.getAll(),
+        checkInsStorage.getAll(),
         materiaisStorage.getAll(),
+        entregasFantasiasStorage.getAll(),
       ]);
 
       setBlocos(loadedBlocos);
       setIntegrantes(loadedIntegrantes);
       setEnsaios(loadedEnsaios);
+      setEventos(loadedEventos);
       setRegistrosPresenca(loadedPresenca);
+      setCheckIns(loadedCheckIns);
       setMateriais(loadedMateriais);
+      setEntregasFantasias(loadedEntregas);
     } catch (error) {
       console.error('Erro ao carregar dados:', error);
     } finally {
@@ -133,13 +184,13 @@ export function DataProvider({ children }: { children: ReactNode }) {
   // FUNÇÕES DE INTEGRANTES
   // ============================================
 
-  const addIntegrante = useCallback(async (data: Omit<Integrante, 'id' | 'criadoEm' | 'atualizadoEm'>) => {
+  const addIntegrante = useCallback(async (data: Omit<Integrante, 'id' | 'criadoEm' | 'atualizadoEm' | 'qrCodeId'>) => {
     const novoIntegrante = await integrantesStorage.create(data);
     setIntegrantes(prev => [...prev, novoIntegrante]);
     return novoIntegrante;
   }, []);
 
-  const updateIntegrante = useCallback(async (id: string, data: Partial<Omit<Integrante, 'id' | 'criadoEm'>>) => {
+  const updateIntegrante = useCallback(async (id: string, data: Partial<Omit<Integrante, 'id' | 'criadoEm' | 'qrCodeId'>>) => {
     const integranteAtualizado = await integrantesStorage.update(id, data);
     if (integranteAtualizado) {
       setIntegrantes(prev => prev.map(i => i.id === id ? integranteAtualizado : i));
@@ -157,6 +208,14 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
   const getIntegrantesByBloco = useCallback((blocoId: string) => {
     return integrantes.filter(i => i.blocosIds.includes(blocoId));
+  }, [integrantes]);
+
+  const getIntegrantesByCategoria = useCallback((categoria: CategoriaIntegrante) => {
+    return integrantes.filter(i => i.categoria === categoria);
+  }, [integrantes]);
+
+  const getIntegranteByQRCode = useCallback((qrCodeId: string) => {
+    return integrantes.find(i => i.qrCodeId === qrCodeId);
   }, [integrantes]);
 
   // ============================================
@@ -181,6 +240,32 @@ export function DataProvider({ children }: { children: ReactNode }) {
     const sucesso = await ensaiosStorage.delete(id);
     if (sucesso) {
       setEnsaios(prev => prev.filter(e => e.id !== id));
+    }
+    return sucesso;
+  }, []);
+
+  // ============================================
+  // FUNÇÕES DE EVENTOS
+  // ============================================
+
+  const addEvento = useCallback(async (data: Omit<Evento, 'id' | 'criadoEm' | 'atualizadoEm'>) => {
+    const novoEvento = await eventosStorage.create(data);
+    setEventos(prev => [...prev, novoEvento]);
+    return novoEvento;
+  }, []);
+
+  const updateEvento = useCallback(async (id: string, data: Partial<Omit<Evento, 'id' | 'criadoEm'>>) => {
+    const eventoAtualizado = await eventosStorage.update(id, data);
+    if (eventoAtualizado) {
+      setEventos(prev => prev.map(e => e.id === id ? eventoAtualizado : e));
+    }
+    return eventoAtualizado;
+  }, []);
+
+  const deleteEvento = useCallback(async (id: string) => {
+    const sucesso = await eventosStorage.delete(id);
+    if (sucesso) {
+      setEventos(prev => prev.filter(e => e.id !== id));
     }
     return sucesso;
   }, []);
@@ -224,6 +309,34 @@ export function DataProvider({ children }: { children: ReactNode }) {
   }, [registrosPresenca]);
 
   // ============================================
+  // FUNÇÕES DE CHECK-IN
+  // ============================================
+
+  const realizarCheckIn = useCallback(async (
+    eventoId: string, 
+    integranteId: string, 
+    qrCodeId: string,
+    metodo: CheckIn['metodo'] = 'qr_code'
+  ) => {
+    const checkIn = await checkInsStorage.create({
+      eventoId,
+      integranteId,
+      qrCodeId,
+      metodo,
+    });
+    setCheckIns(prev => [...prev, checkIn]);
+    return checkIn;
+  }, []);
+
+  const getCheckInsByEvento = useCallback((eventoId: string) => {
+    return checkIns.filter(c => c.eventoId === eventoId);
+  }, [checkIns]);
+
+  const verificarCheckIn = useCallback((eventoId: string, integranteId: string) => {
+    return checkIns.some(c => c.eventoId === eventoId && c.integranteId === integranteId);
+  }, [checkIns]);
+
+  // ============================================
   // FUNÇÕES DE MATERIAIS
   // ============================================
 
@@ -249,14 +362,53 @@ export function DataProvider({ children }: { children: ReactNode }) {
     return sucesso;
   }, []);
 
+  // ============================================
+  // FUNÇÕES DE ENTREGAS DE FANTASIAS
+  // ============================================
+
+  const registrarEntrega = useCallback(async (data: Omit<EntregaFantasia, 'id'>) => {
+    const entrega = await entregasFantasiasStorage.create(data);
+    setEntregasFantasias(prev => [...prev, entrega]);
+    return entrega;
+  }, []);
+
+  const registrarDevolucao = useCallback(async (
+    id: string,
+    responsavel: string,
+    estadoConservacao: EntregaFantasia['estadoConservacao'],
+    observacao?: string
+  ) => {
+    const entregaAtualizada = await entregasFantasiasStorage.registrarDevolucao(
+      id,
+      responsavel,
+      estadoConservacao,
+      observacao
+    );
+    if (entregaAtualizada) {
+      setEntregasFantasias(prev => prev.map(e => e.id === id ? entregaAtualizada : e));
+    }
+    return entregaAtualizada;
+  }, []);
+
+  const getEntregasByIntegrante = useCallback((integranteId: string) => {
+    return entregasFantasias.filter(e => e.integranteId === integranteId);
+  }, [entregasFantasias]);
+
+  const getEntregasPendentes = useCallback(() => {
+    return entregasFantasias.filter(e => e.status === 'entregue');
+  }, [entregasFantasias]);
+
   // Valor do contexto
   const value: DataContextType = {
     // Estado
     blocos,
     integrantes,
     ensaios,
+    eventos,
     registrosPresenca,
+    checkIns,
     materiais,
+    entregasFantasias,
     isLoading,
 
     // Funções de Blocos
@@ -269,20 +421,38 @@ export function DataProvider({ children }: { children: ReactNode }) {
     updateIntegrante,
     deleteIntegrante,
     getIntegrantesByBloco,
+    getIntegrantesByCategoria,
+    getIntegranteByQRCode,
 
     // Funções de Ensaios
     addEnsaio,
     updateEnsaio,
     deleteEnsaio,
 
+    // Funções de Eventos
+    addEvento,
+    updateEvento,
+    deleteEvento,
+
     // Funções de Presença
     registrarPresenca,
     getPresencaByEnsaio,
+
+    // Funções de Check-In
+    realizarCheckIn,
+    getCheckInsByEvento,
+    verificarCheckIn,
 
     // Funções de Materiais
     addMaterial,
     updateMaterial,
     deleteMaterial,
+
+    // Funções de Entregas de Fantasias
+    registrarEntrega,
+    registrarDevolucao,
+    getEntregasByIntegrante,
+    getEntregasPendentes,
 
     // Utilitários
     refreshData: loadData,

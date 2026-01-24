@@ -7,11 +7,15 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { 
   Bloco, 
   Integrante, 
-  Ensaio, 
-  RegistroPresenca, 
-  Material, 
+  Ensaio,
+  Evento,
+  RegistroPresenca,
+  CheckIn,
+  Material,
+  EntregaFantasia,
   MovimentacaoMaterial,
-  AppState 
+  AppState,
+  CategoriaIntegrante,
 } from './types';
 
 // Chaves de armazenamento
@@ -19,14 +23,22 @@ const STORAGE_KEYS = {
   BLOCOS: '@samba_school:blocos',
   INTEGRANTES: '@samba_school:integrantes',
   ENSAIOS: '@samba_school:ensaios',
+  EVENTOS: '@samba_school:eventos',
   REGISTROS_PRESENCA: '@samba_school:registros_presenca',
+  CHECK_INS: '@samba_school:check_ins',
   MATERIAIS: '@samba_school:materiais',
+  ENTREGAS_FANTASIAS: '@samba_school:entregas_fantasias',
   MOVIMENTACOES: '@samba_school:movimentacoes',
 } as const;
 
 // Função auxiliar para gerar IDs únicos
 export function generateId(): string {
   return `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+}
+
+// Função para gerar QR Code ID único
+export function generateQRCodeId(): string {
+  return `QR-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
 }
 
 // Função auxiliar para obter timestamp atual
@@ -148,18 +160,34 @@ export const integrantesStorage = {
     return integrantes.filter(i => i.blocosIds.includes(blocoId));
   },
 
-  async create(data: Omit<Integrante, 'id' | 'criadoEm' | 'atualizadoEm'>): Promise<Integrante> {
+  async getByCategoria(categoria: CategoriaIntegrante): Promise<Integrante[]> {
+    const integrantes = await this.getAll();
+    return integrantes.filter(i => i.categoria === categoria);
+  },
+
+  async getByQRCode(qrCodeId: string): Promise<Integrante | null> {
+    const integrantes = await this.getAll();
+    return integrantes.find(i => i.qrCodeId === qrCodeId) || null;
+  },
+
+  async getAtivos(): Promise<Integrante[]> {
+    const integrantes = await this.getAll();
+    return integrantes.filter(i => i.ativo);
+  },
+
+  async create(data: Omit<Integrante, 'id' | 'criadoEm' | 'atualizadoEm' | 'qrCodeId'>): Promise<Integrante> {
     const now = getTimestamp();
     const integrante: Integrante = {
       ...data,
       id: generateId(),
+      qrCodeId: generateQRCodeId(),
       criadoEm: now,
       atualizadoEm: now,
     };
     return addItem(STORAGE_KEYS.INTEGRANTES, integrante);
   },
 
-  async update(id: string, data: Partial<Omit<Integrante, 'id' | 'criadoEm'>>): Promise<Integrante | null> {
+  async update(id: string, data: Partial<Omit<Integrante, 'id' | 'criadoEm' | 'qrCodeId'>>): Promise<Integrante | null> {
     return updateItem<Integrante>(STORAGE_KEYS.INTEGRANTES, id, {
       ...data,
       atualizadoEm: getTimestamp(),
@@ -209,6 +237,47 @@ export const ensaiosStorage = {
 
   async delete(id: string): Promise<boolean> {
     return deleteItem<Ensaio>(STORAGE_KEYS.ENSAIOS, id);
+  },
+};
+
+// ============================================
+// FUNÇÕES ESPECÍFICAS PARA EVENTOS
+// ============================================
+
+export const eventosStorage = {
+  async getAll(): Promise<Evento[]> {
+    return getItems<Evento>(STORAGE_KEYS.EVENTOS);
+  },
+
+  async getById(id: string): Promise<Evento | null> {
+    return getItemById<Evento>(STORAGE_KEYS.EVENTOS, id);
+  },
+
+  async getByStatus(status: Evento['status']): Promise<Evento[]> {
+    const eventos = await this.getAll();
+    return eventos.filter(e => e.status === status);
+  },
+
+  async create(data: Omit<Evento, 'id' | 'criadoEm' | 'atualizadoEm'>): Promise<Evento> {
+    const now = getTimestamp();
+    const evento: Evento = {
+      ...data,
+      id: generateId(),
+      criadoEm: now,
+      atualizadoEm: now,
+    };
+    return addItem(STORAGE_KEYS.EVENTOS, evento);
+  },
+
+  async update(id: string, data: Partial<Omit<Evento, 'id' | 'criadoEm'>>): Promise<Evento | null> {
+    return updateItem<Evento>(STORAGE_KEYS.EVENTOS, id, {
+      ...data,
+      atualizadoEm: getTimestamp(),
+    });
+  },
+
+  async delete(id: string): Promise<boolean> {
+    return deleteItem<Evento>(STORAGE_KEYS.EVENTOS, id);
   },
 };
 
@@ -272,6 +341,44 @@ export const presencaStorage = {
 };
 
 // ============================================
+// FUNÇÕES ESPECÍFICAS PARA CHECK-INS
+// ============================================
+
+export const checkInsStorage = {
+  async getAll(): Promise<CheckIn[]> {
+    return getItems<CheckIn>(STORAGE_KEYS.CHECK_INS);
+  },
+
+  async getByEvento(eventoId: string): Promise<CheckIn[]> {
+    const checkIns = await this.getAll();
+    return checkIns.filter(c => c.eventoId === eventoId);
+  },
+
+  async getByIntegrante(integranteId: string): Promise<CheckIn[]> {
+    const checkIns = await this.getAll();
+    return checkIns.filter(c => c.integranteId === integranteId);
+  },
+
+  async create(data: Omit<CheckIn, 'id' | 'horarioCheckIn'>): Promise<CheckIn> {
+    const checkIn: CheckIn = {
+      ...data,
+      id: generateId(),
+      horarioCheckIn: getTimestamp(),
+    };
+    return addItem(STORAGE_KEYS.CHECK_INS, checkIn);
+  },
+
+  async existsForEventoAndIntegrante(eventoId: string, integranteId: string): Promise<boolean> {
+    const checkIns = await this.getAll();
+    return checkIns.some(c => c.eventoId === eventoId && c.integranteId === integranteId);
+  },
+
+  async delete(id: string): Promise<boolean> {
+    return deleteItem<CheckIn>(STORAGE_KEYS.CHECK_INS, id);
+  },
+};
+
+// ============================================
 // FUNÇÕES ESPECÍFICAS PARA MATERIAIS
 // ============================================
 
@@ -320,6 +427,66 @@ export const materiaisStorage = {
 };
 
 // ============================================
+// FUNÇÕES ESPECÍFICAS PARA ENTREGAS DE FANTASIAS
+// ============================================
+
+export const entregasFantasiasStorage = {
+  async getAll(): Promise<EntregaFantasia[]> {
+    return getItems<EntregaFantasia>(STORAGE_KEYS.ENTREGAS_FANTASIAS);
+  },
+
+  async getById(id: string): Promise<EntregaFantasia | null> {
+    return getItemById<EntregaFantasia>(STORAGE_KEYS.ENTREGAS_FANTASIAS, id);
+  },
+
+  async getByMaterial(materialId: string): Promise<EntregaFantasia[]> {
+    const entregas = await this.getAll();
+    return entregas.filter(e => e.materialId === materialId);
+  },
+
+  async getByIntegrante(integranteId: string): Promise<EntregaFantasia[]> {
+    const entregas = await this.getAll();
+    return entregas.filter(e => e.integranteId === integranteId);
+  },
+
+  async getPendentes(): Promise<EntregaFantasia[]> {
+    const entregas = await this.getAll();
+    return entregas.filter(e => e.status === 'entregue');
+  },
+
+  async create(data: Omit<EntregaFantasia, 'id'>): Promise<EntregaFantasia> {
+    const entrega: EntregaFantasia = {
+      ...data,
+      id: generateId(),
+    };
+    return addItem(STORAGE_KEYS.ENTREGAS_FANTASIAS, entrega);
+  },
+
+  async update(id: string, data: Partial<Omit<EntregaFantasia, 'id'>>): Promise<EntregaFantasia | null> {
+    return updateItem<EntregaFantasia>(STORAGE_KEYS.ENTREGAS_FANTASIAS, id, data);
+  },
+
+  async registrarDevolucao(
+    id: string, 
+    responsavel: string, 
+    estadoConservacao: EntregaFantasia['estadoConservacao'],
+    observacao?: string
+  ): Promise<EntregaFantasia | null> {
+    return this.update(id, {
+      dataDevolucao: getTimestamp(),
+      responsavelDevolucao: responsavel,
+      estadoConservacao,
+      observacaoDevolucao: observacao,
+      status: 'devolvido',
+    });
+  },
+
+  async delete(id: string): Promise<boolean> {
+    return deleteItem<EntregaFantasia>(STORAGE_KEYS.ENTREGAS_FANTASIAS, id);
+  },
+};
+
+// ============================================
 // FUNÇÕES DE UTILIDADE
 // ============================================
 
@@ -333,22 +500,37 @@ export async function clearAllData(): Promise<void> {
 }
 
 export async function exportAllData(): Promise<AppState> {
-  const [blocos, integrantes, ensaios, registrosPresenca, materiais, movimentacoes] = 
-    await Promise.all([
-      blocosStorage.getAll(),
-      integrantesStorage.getAll(),
-      ensaiosStorage.getAll(),
-      presencaStorage.getAll(),
-      materiaisStorage.getAll(),
-      getItems<MovimentacaoMaterial>(STORAGE_KEYS.MOVIMENTACOES),
-    ]);
+  const [
+    blocos, 
+    integrantes, 
+    ensaios, 
+    eventos,
+    registrosPresenca, 
+    checkIns,
+    materiais, 
+    entregasFantasias,
+    movimentacoes
+  ] = await Promise.all([
+    blocosStorage.getAll(),
+    integrantesStorage.getAll(),
+    ensaiosStorage.getAll(),
+    eventosStorage.getAll(),
+    presencaStorage.getAll(),
+    checkInsStorage.getAll(),
+    materiaisStorage.getAll(),
+    entregasFantasiasStorage.getAll(),
+    getItems<MovimentacaoMaterial>(STORAGE_KEYS.MOVIMENTACOES),
+  ]);
 
   return {
     blocos,
     integrantes,
     ensaios,
+    eventos,
     registrosPresenca,
+    checkIns,
     materiais,
+    entregasFantasias,
     movimentacoes,
   };
 }
@@ -365,11 +547,20 @@ export async function importAllData(data: Partial<AppState>): Promise<void> {
   if (data.ensaios) {
     promises.push(setItems(STORAGE_KEYS.ENSAIOS, data.ensaios));
   }
+  if (data.eventos) {
+    promises.push(setItems(STORAGE_KEYS.EVENTOS, data.eventos));
+  }
   if (data.registrosPresenca) {
     promises.push(setItems(STORAGE_KEYS.REGISTROS_PRESENCA, data.registrosPresenca));
   }
+  if (data.checkIns) {
+    promises.push(setItems(STORAGE_KEYS.CHECK_INS, data.checkIns));
+  }
   if (data.materiais) {
     promises.push(setItems(STORAGE_KEYS.MATERIAIS, data.materiais));
+  }
+  if (data.entregasFantasias) {
+    promises.push(setItems(STORAGE_KEYS.ENTREGAS_FANTASIAS, data.entregasFantasias));
   }
   if (data.movimentacoes) {
     promises.push(setItems(STORAGE_KEYS.MOVIMENTACOES, data.movimentacoes));

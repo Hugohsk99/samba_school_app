@@ -43,16 +43,16 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="ensaios"
+        name="eventos"
         options={{
-          title: "Ensaios",
+          title: "Eventos",
           tabBarIcon: ({ color }) => <IconSymbol size={28} name="calendar.fill" color={color} />,
         }}
       />
       <Tabs.Screen
         name="almoxarifado"
         options={{
-          title: "Almoxarifado",
+          title: "Estoque",
           tabBarIcon: ({ color }) => <IconSymbol size={28} name="box.fill" color={color} />,
         }}
       />
@@ -61,6 +61,13 @@ export default function TabLayout() {
         options={{
           title: "Relatórios",
           tabBarIcon: ({ color }) => <IconSymbol size={28} name="chart.fill" color={color} />,
+        }}
+      />
+      {/* Ocultar a tab antiga de ensaios */}
+      <Tabs.Screen
+        name="ensaios"
+        options={{
+          href: null,
         }}
       />
     </Tabs>

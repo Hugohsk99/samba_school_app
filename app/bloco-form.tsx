@@ -42,6 +42,7 @@ export default function BlocoFormScreen() {
   );
   const [descricao, setDescricao] = useState(blocoExistente?.descricao || "");
   const [cor, setCor] = useState(blocoExistente?.cor || CORES_DISPONIVEIS[0].valor);
+  const [tipo, setTipo] = useState<'ala' | 'segmento'>(blocoExistente?.tipo || 'ala');
   const [isSaving, setIsSaving] = useState(false);
 
   // Validação
@@ -67,6 +68,7 @@ export default function BlocoFormScreen() {
           responsavel: responsavel.trim(),
           descricao: descricao.trim(),
           cor,
+          tipo,
         });
       } else {
         await addBloco({
@@ -74,6 +76,7 @@ export default function BlocoFormScreen() {
           responsavel: responsavel.trim(),
           descricao: descricao.trim(),
           cor,
+          tipo,
         });
       }
 
@@ -133,6 +136,47 @@ export default function BlocoFormScreen() {
                 autoCapitalize="words"
                 returnKeyType="next"
               />
+            </View>
+
+            {/* Campo: Tipo */}
+            <View>
+              <Text className="text-foreground text-sm font-medium mb-2">
+                Tipo
+              </Text>
+              <View className="flex-row gap-3">
+                <TouchableOpacity
+                  onPress={() => setTipo('ala')}
+                  className={`flex-1 py-3 rounded-xl items-center ${
+                    tipo === 'ala'
+                      ? "bg-primary"
+                      : "bg-surface border border-border"
+                  }`}
+                >
+                  <Text
+                    className={`font-medium ${
+                      tipo === 'ala' ? "text-white" : "text-foreground"
+                    }`}
+                  >
+                    Ala
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={() => setTipo('segmento')}
+                  className={`flex-1 py-3 rounded-xl items-center ${
+                    tipo === 'segmento'
+                      ? "bg-primary"
+                      : "bg-surface border border-border"
+                  }`}
+                >
+                  <Text
+                    className={`font-medium ${
+                      tipo === 'segmento' ? "text-white" : "text-foreground"
+                    }`}
+                  >
+                    Segmento
+                  </Text>
+                </TouchableOpacity>
+              </View>
             </View>
 
             {/* Campo: Responsável */}

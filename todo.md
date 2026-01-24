@@ -129,3 +129,35 @@
 - [x] Criar guia de testes com Expo Go
 - [x] Documentar fluxos de teste
 - [x] Preparar checklist de homologação
+
+
+## Sprint 3 - Evolução do Aplicativo (Documento de Requisitos)
+
+### Módulo 2: Gestão de Integrantes Aprimorada
+- [x] Refatorar cadastro com campos completos (foto, nome, CPF, RG, endereço, contato emergência)
+- [x] Implementar categorização obrigatória: Desfilante, Segmento ou Diretoria/Staff
+- [x] Para Segmentos: associação a grupo específico (Bateria, Passistas, etc.)
+- [x] Para Desfilantes: distinção entre Alas Comerciais e Alas da Comunidade
+- [ ] Criar perfis de usuário detalhados com histórico
+- [ ] Implementar listagem de integrantes por categoria/tipo
+
+### Módulo 4: Gestão de Eventos e Controle de Presença
+- [x] Desenvolver módulo de calendário de eventos (ensaios, feijoadas, reuniões)
+- [x] Implementar sistema de check-in com QR Code único por integrante
+- [x] Gerar QR Code no perfil de cada integrante
+- [x] Criar tela de scanner de QR Code para check-in
+- [x] Gerar relatórios detalhados de frequência por integrante, ala e segmento
+
+### Módulo 5: Gestão de Fantasias/Almoxarifado
+- [x] Criar CRUD completo de materiais/fantasias
+- [x] Associar fantasia a ala e tamanho
+- [ ] Implementar fluxo de entrega de fantasia (registro via QR Code)
+- [ ] Implementar fluxo de devolução com estado de conservação
+- [x] Dashboard com status do inventário em tempo real
+
+### Funcionalidades de Busca e Filtros
+- [x] Adicionar campo de busca na listagem de blocos
+- [x] Adicionar campo de busca na listagem de integrantes
+- [x] Adicionar filtros por categoria/tipo de integrante
+- [x] Adicionar busca na listagem de materiais
+- [x] Adicionar filtros por categoria de material

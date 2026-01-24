@@ -1,232 +1,255 @@
-import { ScrollView, Text, View, TouchableOpacity } from "react-native";
-import { ScreenContainer } from "@/components/screen-container";
 import { useState } from "react";
+import { ScrollView, Text, View, TouchableOpacity, FlatList, TextInput } from "react-native";
+import { useRouter } from "expo-router";
+import { ScreenContainer } from "@/components/screen-container";
+import { useData } from "@/lib/data-context";
+import { CATEGORIAS_MATERIAL } from "@/lib/types";
+import type { Material, CategoriaMaterial } from "@/lib/types";
+
+type FilterCategoria = 'todos' | CategoriaMaterial;
 
 export default function AlmoxarifadoScreen() {
-  const [categoriaAtiva, setCategoriaAtiva] = useState('todas');
+  const router = useRouter();
+  const { materiais, blocos, isLoading } = useData();
+  const [filterCategoria, setFilterCategoria] = useState<FilterCategoria>('todos');
+  const [searchQuery, setSearchQuery] = useState("");
 
-  // Dados de exemplo
-  const materiais = [
-    {
-      id: '1',
-      nome: 'Plumas Vermelhas',
-      categoria: 'fantasias',
-      disponivel: 45,
-      emUso: 30,
-      necessaria: 100,
-      status: 'falta',
-    },
-    {
-      id: '2',
-      nome: 'Paetês Dourados',
-      categoria: 'adereccos',
-      disponivel: 500,
-      emUso: 200,
-      necessaria: 600,
-      status: 'ok',
-    },
-    {
-      id: '3',
-      nome: 'Surdos',
-      categoria: 'instrumentos',
-      disponivel: 15,
-      emUso: 12,
-      necessaria: 15,
-      status: 'ok',
-    },
-    {
-      id: '4',
-      nome: 'Tecido Cetim Azul',
-      categoria: 'tecidos',
-      disponivel: 20,
-      emUso: 15,
-      necessaria: 50,
-      status: 'falta',
-    },
-    {
-      id: '5',
-      nome: 'Coroas Decorativas',
-      categoria: 'adereccos',
-      disponivel: 8,
-      emUso: 5,
-      necessaria: 12,
-      status: 'falta',
-    },
-    {
-      id: '6',
-      nome: 'Tamborins',
-      categoria: 'instrumentos',
-      disponivel: 25,
-      emUso: 20,
-      necessaria: 25,
-      status: 'ok',
-    },
-    {
-      id: '7',
-      nome: 'Lantejoulas Prata',
-      categoria: 'adereccos',
-      disponivel: 800,
-      emUso: 300,
-      necessaria: 1000,
-      status: 'ok',
-    },
-    {
-      id: '8',
-      nome: 'Tecido Tule Branco',
-      categoria: 'tecidos',
-      disponivel: 30,
-      emUso: 10,
-      necessaria: 40,
-      status: 'ok',
-    },
-  ];
+  // Filtrar materiais
+  const materiaisFiltrados = materiais.filter(m => {
+    // Filtro por categoria
+    if (filterCategoria !== 'todos' && m.categoria !== filterCategoria) {
+      return false;
+    }
+    // Filtro por busca
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      return m.nome.toLowerCase().includes(query) || 
+             m.descricao.toLowerCase().includes(query);
+    }
+    return true;
+  });
 
-  const categorias = [
-    { id: 'todas', nome: 'Todas', emoji: '📦' },
-    { id: 'fantasias', nome: 'Fantasias', emoji: '👗' },
-    { id: 'adereccos', nome: 'Adereços', emoji: '✨' },
-    { id: 'instrumentos', nome: 'Instrumentos', emoji: '🥁' },
-    { id: 'tecidos', nome: 'Tecidos', emoji: '🧵' },
-  ];
+  // Calcular estatísticas
+  const totalItens = materiais.length;
+  const itensEmFalta = materiais.filter(m => m.quantidadeDisponivel < m.quantidadeNecessaria).length;
+  const fantasias = materiais.filter(m => m.categoria === 'fantasia').length;
 
-  const materiaisFiltrados = categoriaAtiva === 'todas'
-    ? materiais
-    : materiais.filter(m => m.categoria === categoriaAtiva);
+  // Obter label da categoria
+  const getCategoriaLabel = (categoria: CategoriaMaterial) => {
+    const cat = CATEGORIAS_MATERIAL.find(c => c.value === categoria);
+    return cat?.label || categoria;
+  };
 
-  const getStatusColor = (status: string) => {
-    return status === 'falta' ? 'bg-error' : 'bg-success';
+  // Obter nome do bloco
+  const getBlocoNome = (blocoId?: string) => {
+    if (!blocoId) return null;
+    const bloco = blocos.find(b => b.id === blocoId);
+    return bloco?.nome;
+  };
+
+  const handleAddMaterial = () => {
+    router.push("/material-form");
+  };
+
+  const handleMaterialPress = (materialId: string) => {
+    router.push(`/material-form?id=${materialId}`);
+  };
+
+  const renderMaterial = ({ item }: { item: Material }) => {
+    const emFalta = item.quantidadeDisponivel < item.quantidadeNecessaria;
+    const blocoNome = getBlocoNome(item.blocoId);
+    
+    return (
+      <TouchableOpacity
+        onPress={() => handleMaterialPress(item.id)}
+        className="bg-surface rounded-2xl p-4 mb-3 border border-border"
+        activeOpacity={0.7}
+      >
+        <View className="flex-row items-start justify-between mb-2">
+          <View className="flex-1">
+            <Text className="text-foreground text-lg font-semibold">
+              {item.nome}
+            </Text>
+            <View className="flex-row items-center gap-2 mt-1">
+              <View className="bg-primary/20 px-2 py-0.5 rounded">
+                <Text className="text-primary text-xs font-medium">
+                  {getCategoriaLabel(item.categoria)}
+                </Text>
+              </View>
+              {item.tamanho && (
+                <View className="bg-muted/20 px-2 py-0.5 rounded">
+                  <Text className="text-muted text-xs">
+                    Tam: {item.tamanho}
+                  </Text>
+                </View>
+              )}
+              {blocoNome && (
+                <View className="bg-muted/20 px-2 py-0.5 rounded">
+                  <Text className="text-muted text-xs" numberOfLines={1}>
+                    {blocoNome}
+                  </Text>
+                </View>
+              )}
+            </View>
+          </View>
+          
+          {emFalta && (
+            <View className="bg-error/20 px-2 py-1 rounded-full">
+              <Text className="text-error text-xs font-bold">EM FALTA</Text>
+            </View>
+          )}
+        </View>
+
+        {/* Quantidades */}
+        <View className="flex-row items-center gap-4 mt-3 pt-3 border-t border-border">
+          <View className="flex-1 items-center">
+            <Text className="text-muted text-xs mb-1">Necessário</Text>
+            <Text className="text-foreground text-lg font-bold">
+              {item.quantidadeNecessaria}
+            </Text>
+          </View>
+          <View className="flex-1 items-center">
+            <Text className="text-muted text-xs mb-1">Disponível</Text>
+            <Text className={`text-lg font-bold ${emFalta ? 'text-error' : 'text-success'}`}>
+              {item.quantidadeDisponivel}
+            </Text>
+          </View>
+          <View className="flex-1 items-center">
+            <Text className="text-muted text-xs mb-1">Em Uso</Text>
+            <Text className="text-foreground text-lg font-bold">
+              {item.quantidadeEmUso}
+            </Text>
+          </View>
+        </View>
+
+        {item.localizacao && (
+          <View className="flex-row items-center gap-1 mt-2">
+            <Text className="text-muted text-xs">📍</Text>
+            <Text className="text-muted text-xs">{item.localizacao}</Text>
+          </View>
+        )}
+      </TouchableOpacity>
+    );
   };
 
   return (
-    <ScreenContainer>
+    <ScreenContainer className="p-0">
       <View className="flex-1">
         {/* Header */}
-        <View className="p-6 pb-4">
-          <Text className="text-3xl font-bold text-foreground">
-            Almoxarifado
-          </Text>
-          <Text className="text-base text-muted mt-1">
-            Gerencie o inventário de materiais
-          </Text>
-        </View>
+        <View className="px-6 pt-6 pb-4">
+          <View className="flex-row items-center justify-between mb-4">
+            <Text className="text-foreground text-3xl font-bold">Estoque</Text>
+            <TouchableOpacity
+              onPress={handleAddMaterial}
+              className="bg-primary w-10 h-10 rounded-full items-center justify-center"
+            >
+              <Text className="text-white text-2xl font-light">+</Text>
+            </TouchableOpacity>
+          </View>
 
-        {/* Filtro de Categorias */}
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          className="px-6 mb-4"
-        >
-          <View className="flex-row gap-2">
-            {categorias.map((cat) => (
+          {/* Estatísticas */}
+          <View className="flex-row gap-3 mb-4">
+            <View className="flex-1 bg-surface rounded-xl p-3 border border-border">
+              <Text className="text-muted text-xs">Total</Text>
+              <Text className="text-foreground text-xl font-bold">{totalItens}</Text>
+            </View>
+            <View className="flex-1 bg-surface rounded-xl p-3 border border-border">
+              <Text className="text-muted text-xs">Fantasias</Text>
+              <Text className="text-foreground text-xl font-bold">{fantasias}</Text>
+            </View>
+            <View className={`flex-1 rounded-xl p-3 border ${itensEmFalta > 0 ? 'bg-error/10 border-error/30' : 'bg-surface border-border'}`}>
+              <Text className={`text-xs ${itensEmFalta > 0 ? 'text-error' : 'text-muted'}`}>Em Falta</Text>
+              <Text className={`text-xl font-bold ${itensEmFalta > 0 ? 'text-error' : 'text-foreground'}`}>{itensEmFalta}</Text>
+            </View>
+          </View>
+
+          {/* Campo de Busca */}
+          <View className="mb-4">
+            <TextInput
+              className="bg-surface border border-border rounded-xl px-4 py-3 text-foreground text-base"
+              placeholder="Buscar material..."
+              placeholderTextColor="#687076"
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+            />
+          </View>
+
+          {/* Filtros */}
+          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+            <View className="flex-row gap-2">
               <TouchableOpacity
-                key={cat.id}
-                onPress={() => setCategoriaAtiva(cat.id)}
-                className={`px-4 py-2 rounded-full flex-row items-center gap-2 ${
-                  categoriaAtiva === cat.id
+                onPress={() => setFilterCategoria('todos')}
+                className={`px-4 py-2 rounded-full ${
+                  filterCategoria === 'todos'
                     ? 'bg-primary'
                     : 'bg-surface border border-border'
                 }`}
               >
-                <Text className="text-base">{cat.emoji}</Text>
                 <Text
                   className={`text-sm font-medium ${
-                    categoriaAtiva === cat.id ? 'text-white' : 'text-foreground'
+                    filterCategoria === 'todos' ? 'text-white' : 'text-foreground'
                   }`}
                 >
-                  {cat.nome}
+                  Todos
                 </Text>
               </TouchableOpacity>
-            ))}
-          </View>
-        </ScrollView>
+              {CATEGORIAS_MATERIAL.map((cat) => (
+                <TouchableOpacity
+                  key={cat.value}
+                  onPress={() => setFilterCategoria(cat.value)}
+                  className={`px-4 py-2 rounded-full ${
+                    filterCategoria === cat.value
+                      ? 'bg-primary'
+                      : 'bg-surface border border-border'
+                  }`}
+                >
+                  <Text
+                    className={`text-sm font-medium ${
+                      filterCategoria === cat.value ? 'text-white' : 'text-foreground'
+                    }`}
+                  >
+                    {cat.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </ScrollView>
+        </View>
 
         {/* Lista de Materiais */}
-        <ScrollView className="flex-1 px-6">
-          <View className="gap-3 pb-24">
-            {materiaisFiltrados.map((material) => (
-              <TouchableOpacity
-                key={material.id}
-                className="bg-surface rounded-2xl p-4 border border-border active:opacity-70"
-              >
-                {/* Header do Card */}
-                <View className="flex-row items-start justify-between mb-3">
-                  <View className="flex-1">
-                    <Text className="text-foreground text-lg font-semibold">
-                      {material.nome}
-                    </Text>
-                    <Text className="text-muted text-xs mt-0.5 capitalize">
-                      {material.categoria}
-                    </Text>
-                  </View>
-                  {/* Badge de Status */}
-                  <View className={`${getStatusColor(material.status)} px-2 py-1 rounded-full`}>
-                    <Text className="text-white text-xs font-semibold">
-                      {material.status === 'falta' ? 'FALTA' : 'OK'}
-                    </Text>
-                  </View>
-                </View>
-
-                {/* Informações de Quantidade */}
-                <View className="gap-2">
-                  <View className="flex-row items-center justify-between">
-                    <Text className="text-muted text-sm">Disponível</Text>
-                    <Text className="text-foreground text-sm font-semibold">
-                      {material.disponivel}
-                    </Text>
-                  </View>
-                  <View className="flex-row items-center justify-between">
-                    <Text className="text-muted text-sm">Em Uso</Text>
-                    <Text className="text-foreground text-sm font-semibold">
-                      {material.emUso}
-                    </Text>
-                  </View>
-                  <View className="flex-row items-center justify-between">
-                    <Text className="text-muted text-sm">Necessária</Text>
-                    <Text className="text-foreground text-sm font-semibold">
-                      {material.necessaria}
-                    </Text>
-                  </View>
-                </View>
-
-                {/* Barra de Progresso */}
-                <View className="mt-3">
-                  <View className="bg-border rounded-full h-2 overflow-hidden">
-                    <View
-                      className={getStatusColor(material.status)}
-                      style={{
-                        width: `${Math.min(
-                          ((material.disponivel + material.emUso) / material.necessaria) * 100,
-                          100
-                        )}%`,
-                      }}
-                    />
-                  </View>
-                  <Text className="text-muted text-xs mt-1">
-                    {Math.round(
-                      ((material.disponivel + material.emUso) / material.necessaria) * 100
-                    )}% do necessário
-                  </Text>
-                </View>
-              </TouchableOpacity>
-            ))}
+        {isLoading ? (
+          <View className="flex-1 items-center justify-center">
+            <Text className="text-muted">Carregando...</Text>
           </View>
-        </ScrollView>
-
-        {/* Botão Flutuante para Adicionar Material */}
-        <View className="absolute bottom-6 right-6">
-          <TouchableOpacity
-            className="bg-primary w-16 h-16 rounded-full items-center justify-center shadow-lg active:opacity-80"
-            style={{
-              shadowColor: '#000',
-              shadowOffset: { width: 0, height: 4 },
-              shadowOpacity: 0.3,
-              shadowRadius: 8,
-              elevation: 8,
-            }}
-          >
-            <Text className="text-white text-3xl font-light">+</Text>
-          </TouchableOpacity>
-        </View>
+        ) : materiaisFiltrados.length === 0 ? (
+          <View className="flex-1 items-center justify-center p-6">
+            <Text className="text-muted text-6xl mb-4">📦</Text>
+            <Text className="text-foreground text-xl font-semibold mb-2">
+              Nenhum item encontrado
+            </Text>
+            <Text className="text-muted text-center mb-6">
+              {searchQuery || filterCategoria !== 'todos'
+                ? 'Tente ajustar os filtros ou busca.'
+                : 'Adicione itens ao estoque para começar a gerenciar.'}
+            </Text>
+            {!searchQuery && filterCategoria === 'todos' && (
+              <TouchableOpacity
+                onPress={handleAddMaterial}
+                className="bg-primary px-6 py-3 rounded-full"
+              >
+                <Text className="text-white font-semibold">Adicionar Item</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        ) : (
+          <FlatList
+            data={materiaisFiltrados}
+            renderItem={renderMaterial}
+            keyExtractor={(item) => item.id}
+            contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: 100 }}
+            showsVerticalScrollIndicator={false}
+          />
+        )}
       </View>
     </ScreenContainer>
   );
