@@ -173,6 +173,9 @@ export type TamanhoFantasia = 'PP' | 'P' | 'M' | 'G' | 'GG' | 'XG' | 'especial';
 // Estado de conservação
 export type EstadoConservacao = 'novo' | 'bom' | 'regular' | 'danificado' | 'inutilizavel';
 
+// Status do material
+export type StatusMaterial = 'disponivel' | 'emprestado' | 'em_manutencao' | 'reservado';
+
 // Material do almoxarifado (Módulo 5 - Aprimorado)
 export interface Material {
   id: string;
@@ -183,6 +186,10 @@ export interface Material {
   quantidadeDisponivel: number;
   quantidadeEmUso: number;
   quantidadeNecessaria: number;
+  
+  // Status atual (para itens únicos como fantasias)
+  status?: StatusMaterial;
+  integranteAtualId?: string; // Quem está com o item atualmente
   
   // Para fantasias
   tamanho?: TamanhoFantasia;
@@ -218,15 +225,24 @@ export interface EntregaFantasia {
   status: 'entregue' | 'devolvido' | 'pendente' | 'extraviado';
 }
 
-// Movimentação de material
+// Tipo de movimentação expandido
+export type TipoMovimentacao = 'entrada' | 'saida' | 'emprestimo' | 'devolucao' | 'ajuste' | 'manutencao';
+
+// Movimentação de material (histórico completo)
 export interface MovimentacaoMaterial {
   id: string;
   materialId: string;
-  tipo: 'entrada' | 'saida' | 'ajuste';
+  tipo: TipoMovimentacao;
   quantidade: number;
   responsavel: string;
   observacao: string;
   data: string;
+  
+  // Para empréstimos/devoluções
+  integranteId?: string;
+  integranteNome?: string;
+  entregaFantasiaId?: string;
+  estadoConservacao?: EstadoConservacao;
 }
 
 // ============================================

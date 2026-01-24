@@ -81,6 +81,13 @@ export default function AlmoxarifadoScreen() {
     router.push("/devolucao-fantasia");
   };
 
+  const handleHistoricoMaterial = (materialId: string) => {
+    if (Platform.OS !== "web") {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
+    router.push(`/historico-material?materialId=${materialId}`);
+  };
+
   const renderMaterial = ({ item }: { item: Material }) => {
     const emFalta = item.quantidadeDisponivel < item.quantidadeNecessaria;
     const blocoNome = getBlocoNome(item.blocoId);
@@ -154,6 +161,18 @@ export default function AlmoxarifadoScreen() {
             <Text className="text-muted text-xs">{item.localizacao}</Text>
           </View>
         )}
+
+        {/* Botão de histórico */}
+        <TouchableOpacity
+          onPress={(e) => {
+            e.stopPropagation();
+            handleHistoricoMaterial(item.id);
+          }}
+          className="mt-3 pt-3 border-t border-border flex-row items-center justify-center gap-2"
+          activeOpacity={0.7}
+        >
+          <Text className="text-primary text-sm font-medium">📋 Ver Histórico de Movimentações</Text>
+        </TouchableOpacity>
       </TouchableOpacity>
     );
   };

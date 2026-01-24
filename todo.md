@@ -302,3 +302,35 @@
 - [x] Adicionar botão de adicionar material na tela de Estoque (só aparece na Home)
 - [x] Verificar permissões de acesso ao botão de adicionar material
 
+
+
+## Sprint 10 - Aprimoramento do Controle de Materiais/Fantasias
+
+### Modelo de Dados e Rastreabilidade
+- [x] Aprimorar tipo EntregaFantasia com campos completos (responsável, observações)
+- [x] Criar relacionamento claro entre Material, Integrante e Entrega
+- [x] Adicionar campo de status no Material (disponível, emprestado, em manutenção)
+- [x] Implementar histórico de movimentações por material
+
+### Fluxo de Empréstimo Aprimorado
+- [x] Melhorar tela de entrega com seleção clara de material e integrante
+- [x] Mostrar quem está com cada material na listagem
+- [x] Adicionar validação para não emprestar material já emprestado
+- [x] Implementar feedback visual claro após empréstimo
+
+### Fluxo de Devolução Aprimorado
+- [x] Criar tela de devolução com lista de itens emprestados ao integrante
+- [x] Adicionar seleção de estado de conservação na devolução
+- [x] Atualizar status do material automaticamente após devolução
+- [x] Registrar histórico completo da movimentação
+
+### Visualização e Histórico
+- [x] Criar tela de histórico de movimentações por material
+- [x] Mostrar timeline de empréstimos/devoluções
+- [ ] Adicionar filtros por integrante, material e período
+- [x] Exibir estatísticas de uso (quantas vezes emprestado, tempo médio)
+
+### Integração e Links
+- [ ] No perfil do integrante, mostrar materiais emprestados atualmente
+- [x] No detalhe do material, mostrar quem está com ele e histórico
+- [x] Criar alertas para materiais com empréstimo prolongado
