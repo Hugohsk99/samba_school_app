@@ -11,6 +11,7 @@ import { ThemeProvider } from "@/lib/theme-provider";
 import { DataProvider } from "@/lib/data-context";
 import { EscolaProvider } from "@/lib/escola-context";
 import { ToastProvider } from "@/lib/toast-context";
+import { AuthProvider } from "@/lib/auth-context";
 import {
   SafeAreaFrameContext,
   SafeAreaInsetsContext,
@@ -105,15 +106,17 @@ export default function RootLayout() {
       <ThemeProvider>
         <EscolaProvider>
           <DataProvider>
-            <ToastProvider>
-              <SafeAreaProvider initialMetrics={providerInitialMetrics}>
+            <AuthProvider>
+              <ToastProvider>
+                <SafeAreaProvider initialMetrics={providerInitialMetrics}>
                 <SafeAreaFrameContext.Provider value={frame}>
                   <SafeAreaInsetsContext.Provider value={insets}>
                     {content}
                   </SafeAreaInsetsContext.Provider>
                 </SafeAreaFrameContext.Provider>
               </SafeAreaProvider>
-            </ToastProvider>
+              </ToastProvider>
+            </AuthProvider>
           </DataProvider>
         </EscolaProvider>
       </ThemeProvider>
@@ -124,9 +127,11 @@ export default function RootLayout() {
     <ThemeProvider>
       <EscolaProvider>
         <DataProvider>
-          <ToastProvider>
-            <SafeAreaProvider initialMetrics={providerInitialMetrics}>{content}</SafeAreaProvider>
-          </ToastProvider>
+          <AuthProvider>
+            <ToastProvider>
+              <SafeAreaProvider initialMetrics={providerInitialMetrics}>{content}</SafeAreaProvider>
+            </ToastProvider>
+          </AuthProvider>
         </DataProvider>
       </EscolaProvider>
     </ThemeProvider>

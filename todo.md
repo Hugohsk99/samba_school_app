@@ -223,3 +223,39 @@
 - [x] Adicionar feedback de erro em todas as ações que podem falhar
 - [x] Adicionar loading visual durante operações assíncronas
 - [x] Garantir que toda interação tenha resposta visual
+
+
+## Sprint 6 - Máscaras, Foto, QR Code e Hierarquia de Permissões
+
+### Componentes de Entrada com Máscaras
+- [x] Criar componente MaskedInput reutilizável
+- [x] Implementar máscara para campo de telefone (XX) XXXXX-XXXX
+- [x] Implementar máscara para campo de data DD/MM/AAAA
+- [x] Implementar máscara para campo de horário HH:MM
+- [x] Implementar validação de e-mail com feedback visual
+- [x] Adicionar limite de caracteres em todos os campos
+- [x] Adicionar ícone de ajuda (?) com tooltip explicativo em cada campo
+- [x] Aplicar máscaras em todos os formulários do app
+
+### Foto de Integrantes
+- [x] Adicionar campo de foto no cadastro de integrante
+- [x] Implementar seleção de foto da galeria
+- [x] Implementar captura de foto pela câmera
+- [x] Exibir foto no perfil e na listagem de integrantes
+- [x] Exibir foto na carteirinha/QR Code do integrante
+
+### Correção do Sistema de QR Code
+- [x] Corrigir geração do QR Code único por integrante
+- [x] Criar tela de "Carteirinha Digital" com QR Code do integrante
+- [x] Implementar leitura correta do QR Code para check-in
+- [x] Garantir que o QR Code contenha dados corretos do integrante
+
+### Sistema de Hierarquia de Permissões
+- [x] Definir níveis de acesso: Diretoria (total), Coordenador (parcial), Integrante (limitado)
+- [x] Implementar contexto de autenticação/sessão do usuário logado
+- [x] Diretoria: acesso total a todas as funcionalidades
+- [x] Coordenador: pode fazer check-in, ver relatórios da sua ala
+- [x] Integrante: acesso apenas ao próprio perfil e QR Code
+- [ ] Ocultar/desabilitar funcionalidades baseado no nível de acesso
+- [x] Criar tela de login/seleção de perfil
+

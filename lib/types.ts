@@ -65,8 +65,10 @@ export interface Integrante {
   // Documentos (opcionais para MVP)
   cpf?: string;
   rg?: string;
+  dataNascimento?: string;
   
   // Endereço
+  cep?: string;
   endereco?: string;
   bairro?: string;
   cidade?: string;
