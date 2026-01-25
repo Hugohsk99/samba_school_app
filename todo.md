@@ -435,3 +435,39 @@
 - [x] Criar galeria de fotos por evento
 - [x] Adicionar visualização em tela cheia
 - [x] Implementar exclusão de fotos
+
+
+## Sprint 14 - Sistema de Autenticação e Permissões
+
+### Análise e Planejamento
+- [x] Analisar estrutura atual de autenticação
+- [x] Documentar hierarquia de permissões
+- [x] Projetar schema do banco de dados
+
+### Banco de Dados
+- [x] Criar tabela de usuários com campos de permissão
+- [x] Criar tabela de roles (papéis)
+- [x] Criar tabela de permissões específicas
+- [x] Criar relacionamento usuário-escola
+- [x] Adicionar campo de plano (gratuito/premium)
+- [x] Adicionar campos para OAuth futuro
+
+### Níveis de Acesso
+- [x] Implementar role Master (acesso total)
+- [x] Implementar role Presidente/Gestor
+- [x] Implementar role Diretor de Bloco
+- [x] Implementar role Integrante
+- [x] Implementar role Contribuinte
+
+### Frontend
+- [x] Criar tela de login melhorada
+- [x] Implementar verificação de permissões por tela
+- [x] Ocultar/mostrar funcionalidades por role
+- [x] Criar fluxo de aprovação de usuários
+- [x] Criar tela de gestão de usuários
+- [x] Criar tela de convites
+
+### Testes
+- [x] Criar usuário master para testes
+- [x] Testar cada nível de permissão
+- [x] Validar fluxo de aprovação

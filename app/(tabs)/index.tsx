@@ -394,6 +394,58 @@ export default function HomeScreen() {
             </View>
           </View>
 
+          {/* Gestão de Usuários - Apenas para gestores */}
+          <View className="gap-4">
+            <Text className="text-foreground text-xl font-bold">
+              👑 Gestão
+            </Text>
+            <View className="gap-3">
+              <TouchableOpacity
+                onPress={() => handlePress(() => router.push("/gestao-usuarios"))}
+                className="flex-row items-center gap-4 bg-surface border-2 border-primary rounded-2xl p-5"
+                activeOpacity={0.8}
+              >
+                <View 
+                  className="w-14 h-14 rounded-2xl items-center justify-center"
+                  style={{ backgroundColor: `${cores.primary}20` }}
+                >
+                  <Text className="text-3xl">👥</Text>
+                </View>
+                <View className="flex-1">
+                  <Text className="text-foreground text-lg font-bold">
+                    Gestão de Usuários
+                  </Text>
+                  <Text className="text-muted text-base">
+                    Aprovar e gerenciar permissões
+                  </Text>
+                </View>
+                <Text className="text-muted text-2xl">→</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={() => handlePress(() => router.push("/convites"))}
+                className="flex-row items-center gap-4 bg-surface border border-border rounded-2xl p-5"
+                activeOpacity={0.8}
+              >
+                <View 
+                  className="w-14 h-14 rounded-2xl items-center justify-center"
+                  style={{ backgroundColor: '#8B5CF620' }}
+                >
+                  <Text className="text-3xl">🎟️</Text>
+                </View>
+                <View className="flex-1">
+                  <Text className="text-foreground text-lg font-bold">
+                    Convites
+                  </Text>
+                  <Text className="text-muted text-base">
+                    Convidar novos membros
+                  </Text>
+                </View>
+                <Text className="text-muted text-2xl">→</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+
           {/* Próximos Eventos */}
           {stats.eventosAgendados > 0 && (
             <View className="gap-4">
