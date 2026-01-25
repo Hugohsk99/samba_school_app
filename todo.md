@@ -406,3 +406,32 @@
 - [x] Adicionar indicadores visuais claros de quem está com cada material
 - [x] Criar atalhos rápidos para entrega e devolução na tela de estoque
 - [x] Testar fluxo completo: entrega → pendente → devolução
+
+
+## Sprint 13 - Novas Funcionalidades
+
+### Dashboard Financeiro
+- [x] Criar tipos para transações financeiras (receitas/despesas)
+- [x] Implementar storage para dados financeiros
+- [x] Criar tela de Dashboard Financeiro com resumo
+- [x] Adicionar formulário de nova transação
+- [x] Implementar listagem de transações com filtros
+- [ ] Adicionar gráficos de receitas vs despesas
+
+### Sistema de Notificações e Lembretes
+- [x] Configurar expo-notifications
+- [x] Implementar sistema de lembretes locais
+- [x] Criar tela de configuração de notificações
+- [x] Adicionar lembretes para eventos próximos
+- [x] Implementar lembretes de devolução de materiais
+
+### Posts de Eventos
+- [x] Criar funcionalidade de publicar eventos
+- [x] Implementar feed de eventos/comunicados
+- [x] Adicionar compartilhamento de eventos
+
+### Galeria de Fotos
+- [x] Implementar upload de fotos de eventos
+- [x] Criar galeria de fotos por evento
+- [x] Adicionar visualização em tela cheia
+- [x] Implementar exclusão de fotos

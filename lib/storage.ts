@@ -568,3 +568,179 @@ export async function importAllData(data: Partial<AppState>): Promise<void> {
 
   await Promise.all(promises);
 }
+
+
+// ============================================
+// FUNÇÕES ESPECÍFICAS PARA TRANSAÇÕES FINANCEIRAS
+// ============================================
+
+const STORAGE_KEY_TRANSACOES = '@samba_school:transacoes';
+const STORAGE_KEY_FOTOS = '@samba_school:fotos_eventos';
+const STORAGE_KEY_LEMBRETES = '@samba_school:lembretes';
+
+import type { TransacaoFinanceira, FotoEvento, Lembrete } from './types';
+
+export const transacoesStorage = {
+  async getAll(): Promise<TransacaoFinanceira[]> {
+    return getItems<TransacaoFinanceira>(STORAGE_KEY_TRANSACOES);
+  },
+
+  async getById(id: string): Promise<TransacaoFinanceira | null> {
+    return getItemById<TransacaoFinanceira>(STORAGE_KEY_TRANSACOES, id);
+  },
+
+  async getByTipo(tipo: 'receita' | 'despesa'): Promise<TransacaoFinanceira[]> {
+    const transacoes = await this.getAll();
+    return transacoes.filter(t => t.tipo === tipo);
+  },
+
+  async getByPeriodo(dataInicio: string, dataFim: string): Promise<TransacaoFinanceira[]> {
+    const transacoes = await this.getAll();
+    return transacoes.filter(t => t.data >= dataInicio && t.data <= dataFim);
+  },
+
+  async getByStatus(status: TransacaoFinanceira['status']): Promise<TransacaoFinanceira[]> {
+    const transacoes = await this.getAll();
+    return transacoes.filter(t => t.status === status);
+  },
+
+  async create(data: Omit<TransacaoFinanceira, 'id' | 'criadoEm' | 'atualizadoEm'>): Promise<TransacaoFinanceira> {
+    const now = getTimestamp();
+    const transacao: TransacaoFinanceira = {
+      ...data,
+      id: generateId(),
+      criadoEm: now,
+      atualizadoEm: now,
+    };
+    return addItem(STORAGE_KEY_TRANSACOES, transacao);
+  },
+
+  async update(id: string, data: Partial<Omit<TransacaoFinanceira, 'id' | 'criadoEm'>>): Promise<TransacaoFinanceira | null> {
+    return updateItem<TransacaoFinanceira>(STORAGE_KEY_TRANSACOES, id, {
+      ...data,
+      atualizadoEm: getTimestamp(),
+    });
+  },
+
+  async delete(id: string): Promise<boolean> {
+    return deleteItem<TransacaoFinanceira>(STORAGE_KEY_TRANSACOES, id);
+  },
+
+  async getResumo(): Promise<{
+    totalReceitas: number;
+    totalDespesas: number;
+    saldo: number;
+    receitasPendentes: number;
+    despesasPendentes: number;
+  }> {
+    const transacoes = await this.getAll();
+    
+    const receitas = transacoes.filter(t => t.tipo === 'receita');
+    const despesas = transacoes.filter(t => t.tipo === 'despesa');
+    
+    const totalReceitas = receitas
+      .filter(t => t.status === 'pago')
+      .reduce((acc, t) => acc + t.valor, 0);
+    
+    const totalDespesas = despesas
+      .filter(t => t.status === 'pago')
+      .reduce((acc, t) => acc + t.valor, 0);
+    
+    const receitasPendentes = receitas
+      .filter(t => t.status === 'pendente' || t.status === 'atrasado')
+      .reduce((acc, t) => acc + t.valor, 0);
+    
+    const despesasPendentes = despesas
+      .filter(t => t.status === 'pendente' || t.status === 'atrasado')
+      .reduce((acc, t) => acc + t.valor, 0);
+    
+    return {
+      totalReceitas,
+      totalDespesas,
+      saldo: totalReceitas - totalDespesas,
+      receitasPendentes,
+      despesasPendentes,
+    };
+  },
+};
+
+// ============================================
+// FUNÇÕES ESPECÍFICAS PARA FOTOS DE EVENTOS
+// ============================================
+
+export const fotosEventosStorage = {
+  async getAll(): Promise<FotoEvento[]> {
+    return getItems<FotoEvento>(STORAGE_KEY_FOTOS);
+  },
+
+  async getByEvento(eventoId: string): Promise<FotoEvento[]> {
+    const fotos = await this.getAll();
+    return fotos.filter(f => f.eventoId === eventoId);
+  },
+
+  async create(data: Omit<FotoEvento, 'id' | 'criadoEm'>): Promise<FotoEvento> {
+    const foto: FotoEvento = {
+      ...data,
+      id: generateId(),
+      criadoEm: getTimestamp(),
+    };
+    return addItem(STORAGE_KEY_FOTOS, foto);
+  },
+
+  async delete(id: string): Promise<boolean> {
+    return deleteItem<FotoEvento>(STORAGE_KEY_FOTOS, id);
+  },
+
+  async deleteByEvento(eventoId: string): Promise<void> {
+    const fotos = await this.getAll();
+    const fotosFiltradas = fotos.filter(f => f.eventoId !== eventoId);
+    await setItems(STORAGE_KEY_FOTOS, fotosFiltradas);
+  },
+};
+
+// ============================================
+// FUNÇÕES ESPECÍFICAS PARA LEMBRETES
+// ============================================
+
+export const lembretesStorage = {
+  async getAll(): Promise<Lembrete[]> {
+    return getItems<Lembrete>(STORAGE_KEY_LEMBRETES);
+  },
+
+  async getById(id: string): Promise<Lembrete | null> {
+    return getItemById<Lembrete>(STORAGE_KEY_LEMBRETES, id);
+  },
+
+  async getAtivos(): Promise<Lembrete[]> {
+    const lembretes = await this.getAll();
+    return lembretes.filter(l => l.ativo);
+  },
+
+  async getByTipo(tipo: Lembrete['tipo']): Promise<Lembrete[]> {
+    const lembretes = await this.getAll();
+    return lembretes.filter(l => l.tipo === tipo);
+  },
+
+  async create(data: Omit<Lembrete, 'id' | 'criadoEm'>): Promise<Lembrete> {
+    const lembrete: Lembrete = {
+      ...data,
+      id: generateId(),
+      criadoEm: getTimestamp(),
+    };
+    return addItem(STORAGE_KEY_LEMBRETES, lembrete);
+  },
+
+  async update(id: string, data: Partial<Omit<Lembrete, 'id' | 'criadoEm'>>): Promise<Lembrete | null> {
+    return updateItem<Lembrete>(STORAGE_KEY_LEMBRETES, id, data);
+  },
+
+  async delete(id: string): Promise<boolean> {
+    return deleteItem<Lembrete>(STORAGE_KEY_LEMBRETES, id);
+  },
+
+  async toggleAtivo(id: string): Promise<Lembrete | null> {
+    const lembrete = await this.getById(id);
+    if (!lembrete) return null;
+    return this.update(id, { ativo: !lembrete.ativo });
+  },
+};

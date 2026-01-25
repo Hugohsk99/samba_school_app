@@ -13,6 +13,7 @@ import { ScreenContainer } from "@/components/screen-container";
 import { useData } from "@/lib/data-context";
 import * as Haptics from "expo-haptics";
 import { TIPOS_EVENTO } from "@/lib/types";
+import { useFinanceiro } from "@/lib/financeiro-context";
 
 export default function EventoDetalhesScreen() {
   const router = useRouter();
@@ -28,6 +29,8 @@ export default function EventoDetalhesScreen() {
 
   const evento = eventos.find(e => e.id === params.id);
   const checkIns = evento ? getCheckInsByEvento(evento.id) : [];
+  const { getFotosByEvento } = useFinanceiro();
+  const fotosEvento = evento ? getFotosByEvento(evento.id) : [];
 
   if (!evento) {
     return (
@@ -70,6 +73,11 @@ export default function EventoDetalhesScreen() {
       checkInAberto: !evento.checkInAberto,
       status: !evento.checkInAberto ? 'em_andamento' : evento.status,
     });
+  };
+
+  // Abrir galeria
+  const handleAbrirGaleria = () => {
+    router.push(`/galeria-evento?eventoId=${evento.id}`);
   };
 
   // Iniciar scanner
@@ -312,6 +320,34 @@ export default function EventoDetalhesScreen() {
               </View>
             </View>
           )}
+
+          {/* Galeria de Fotos */}
+          <View className="px-6 pb-6">
+            <View className="flex-row items-center justify-between mb-4">
+              <Text className="text-foreground text-lg font-semibold">
+                Galeria de Fotos
+              </Text>
+              <TouchableOpacity onPress={handleAbrirGaleria}>
+                <Text className="text-primary text-base font-medium">
+                  Ver todas →
+                </Text>
+              </TouchableOpacity>
+            </View>
+            
+            <TouchableOpacity
+              onPress={handleAbrirGaleria}
+              className="bg-surface rounded-2xl p-6 border border-border items-center"
+              activeOpacity={0.7}
+            >
+              <Text className="text-4xl mb-2">📷</Text>
+              <Text className="text-foreground text-lg font-semibold">
+                {fotosEvento.length} foto{fotosEvento.length !== 1 ? 's' : ''}
+              </Text>
+              <Text className="text-muted text-sm mt-1">
+                Toque para ver ou adicionar fotos
+              </Text>
+            </TouchableOpacity>
+          </View>
 
           {/* Descrição */}
           {evento.descricao && (

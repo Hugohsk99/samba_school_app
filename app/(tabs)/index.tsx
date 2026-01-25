@@ -347,6 +347,50 @@ export default function HomeScreen() {
                 </View>
                 <Text className="text-muted text-2xl">→</Text>
               </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={() => handlePress(() => router.push("/financeiro"))}
+                className="flex-row items-center gap-4 bg-surface border border-border rounded-2xl p-5"
+                activeOpacity={0.8}
+              >
+                <View 
+                  className="w-14 h-14 rounded-2xl items-center justify-center"
+                  style={{ backgroundColor: '#22C55E20' }}
+                >
+                  <Text className="text-3xl">💰</Text>
+                </View>
+                <View className="flex-1">
+                  <Text className="text-foreground text-lg font-bold">
+                    Financeiro
+                  </Text>
+                  <Text className="text-muted text-base">
+                    Controlar receitas e despesas
+                  </Text>
+                </View>
+                <Text className="text-muted text-2xl">→</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={() => handlePress(() => router.push("/lembretes"))}
+                className="flex-row items-center gap-4 bg-surface border border-border rounded-2xl p-5"
+                activeOpacity={0.8}
+              >
+                <View 
+                  className="w-14 h-14 rounded-2xl items-center justify-center"
+                  style={{ backgroundColor: '#F59E0B20' }}
+                >
+                  <Text className="text-3xl">🔔</Text>
+                </View>
+                <View className="flex-1">
+                  <Text className="text-foreground text-lg font-bold">
+                    Lembretes
+                  </Text>
+                  <Text className="text-muted text-base">
+                    Notificações e alertas
+                  </Text>
+                </View>
+                <Text className="text-muted text-2xl">→</Text>
+              </TouchableOpacity>
             </View>
           </View>
 

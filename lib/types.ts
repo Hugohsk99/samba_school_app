@@ -450,3 +450,151 @@ export const ONBOARDING_SLIDES: OnboardingSlide[] = [
     cor: '#F38181',
   },
 ];
+
+
+// ============================================
+// MÓDULO FINANCEIRO
+// ============================================
+
+// Tipo de transação financeira
+export type TipoTransacao = 'receita' | 'despesa';
+
+// Categorias de receitas
+export type CategoriaReceita = 
+  | 'mensalidade'
+  | 'fantasia'
+  | 'evento'
+  | 'patrocinio'
+  | 'doacao'
+  | 'venda'
+  | 'outro';
+
+// Categorias de despesas
+export type CategoriaDespesa = 
+  | 'fantasia'
+  | 'aderecos'
+  | 'instrumentos'
+  | 'estrutura'
+  | 'transporte'
+  | 'alimentacao'
+  | 'pessoal'
+  | 'marketing'
+  | 'manutencao'
+  | 'outro';
+
+// Status de pagamento
+export type StatusPagamento = 'pendente' | 'pago' | 'cancelado' | 'atrasado';
+
+// Forma de pagamento
+export type FormaPagamento = 'dinheiro' | 'pix' | 'cartao_credito' | 'cartao_debito' | 'transferencia' | 'boleto' | 'outro';
+
+// Transação financeira
+export interface TransacaoFinanceira {
+  id: string;
+  tipo: TipoTransacao;
+  categoriaReceita?: CategoriaReceita;
+  categoriaDespesa?: CategoriaDespesa;
+  descricao: string;
+  valor: number;
+  data: string;
+  formaPagamento: FormaPagamento;
+  status: StatusPagamento;
+  
+  // Referências opcionais
+  integranteId?: string;
+  eventoId?: string;
+  blocoId?: string;
+  
+  // Comprovante
+  comprovante?: string;
+  
+  // Observações
+  observacao?: string;
+  
+  // Timestamps
+  criadoEm: string;
+  atualizadoEm: string;
+}
+
+// Constantes para categorias
+export const CATEGORIAS_RECEITA: { value: CategoriaReceita; label: string; emoji: string }[] = [
+  { value: 'mensalidade', label: 'Mensalidade', emoji: '💳' },
+  { value: 'fantasia', label: 'Venda de Fantasia', emoji: '👗' },
+  { value: 'evento', label: 'Evento', emoji: '🎉' },
+  { value: 'patrocinio', label: 'Patrocínio', emoji: '🤝' },
+  { value: 'doacao', label: 'Doação', emoji: '❤️' },
+  { value: 'venda', label: 'Venda', emoji: '🛒' },
+  { value: 'outro', label: 'Outro', emoji: '📋' },
+];
+
+export const CATEGORIAS_DESPESA: { value: CategoriaDespesa; label: string; emoji: string }[] = [
+  { value: 'fantasia', label: 'Fantasia', emoji: '👗' },
+  { value: 'aderecos', label: 'Adereços', emoji: '✨' },
+  { value: 'instrumentos', label: 'Instrumentos', emoji: '🥁' },
+  { value: 'estrutura', label: 'Estrutura/Barracão', emoji: '🏗️' },
+  { value: 'transporte', label: 'Transporte', emoji: '🚌' },
+  { value: 'alimentacao', label: 'Alimentação', emoji: '🍽️' },
+  { value: 'pessoal', label: 'Pessoal/Salários', emoji: '👥' },
+  { value: 'marketing', label: 'Marketing', emoji: '📢' },
+  { value: 'manutencao', label: 'Manutenção', emoji: '🔧' },
+  { value: 'outro', label: 'Outro', emoji: '📋' },
+];
+
+export const FORMAS_PAGAMENTO: { value: FormaPagamento; label: string; emoji: string }[] = [
+  { value: 'dinheiro', label: 'Dinheiro', emoji: '💵' },
+  { value: 'pix', label: 'PIX', emoji: '📱' },
+  { value: 'cartao_credito', label: 'Cartão de Crédito', emoji: '💳' },
+  { value: 'cartao_debito', label: 'Cartão de Débito', emoji: '💳' },
+  { value: 'transferencia', label: 'Transferência', emoji: '🏦' },
+  { value: 'boleto', label: 'Boleto', emoji: '📄' },
+  { value: 'outro', label: 'Outro', emoji: '📋' },
+];
+
+export const STATUS_PAGAMENTO: { value: StatusPagamento; label: string; cor: string }[] = [
+  { value: 'pago', label: 'Pago', cor: '#22C55E' },
+  { value: 'pendente', label: 'Pendente', cor: '#F59E0B' },
+  { value: 'atrasado', label: 'Atrasado', cor: '#EF4444' },
+  { value: 'cancelado', label: 'Cancelado', cor: '#6B7280' },
+];
+
+// ============================================
+// MÓDULO DE GALERIA DE FOTOS
+// ============================================
+
+// Foto de evento
+export interface FotoEvento {
+  id: string;
+  eventoId: string;
+  uri: string;
+  descricao?: string;
+  uploadPor: string;
+  criadoEm: string;
+}
+
+// ============================================
+// MÓDULO DE LEMBRETES/NOTIFICAÇÕES
+// ============================================
+
+// Tipo de lembrete
+export type TipoLembrete = 'evento' | 'devolucao' | 'pagamento' | 'aniversario' | 'personalizado';
+
+// Lembrete
+export interface Lembrete {
+  id: string;
+  tipo: TipoLembrete;
+  titulo: string;
+  mensagem: string;
+  dataHora: string;
+  repetir: boolean;
+  intervaloRepeticao?: 'diario' | 'semanal' | 'mensal';
+  ativo: boolean;
+  
+  // Referências
+  eventoId?: string;
+  integranteId?: string;
+  entregaFantasiaId?: string;
+  transacaoId?: string;
+  
+  // Timestamps
+  criadoEm: string;
+}

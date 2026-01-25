@@ -12,6 +12,7 @@ import { DataProvider } from "@/lib/data-context";
 import { EscolaProvider } from "@/lib/escola-context";
 import { ToastProvider } from "@/lib/toast-context";
 import { AuthProvider } from "@/lib/auth-context";
+import { FinanceiroProvider } from "@/lib/financeiro-context";
 import {
   SafeAreaFrameContext,
   SafeAreaInsetsContext,
@@ -106,17 +107,19 @@ export default function RootLayout() {
       <ThemeProvider>
         <EscolaProvider>
           <DataProvider>
-            <AuthProvider>
-              <ToastProvider>
-                <SafeAreaProvider initialMetrics={providerInitialMetrics}>
-                <SafeAreaFrameContext.Provider value={frame}>
-                  <SafeAreaInsetsContext.Provider value={insets}>
-                    {content}
-                  </SafeAreaInsetsContext.Provider>
-                </SafeAreaFrameContext.Provider>
-              </SafeAreaProvider>
-              </ToastProvider>
-            </AuthProvider>
+            <FinanceiroProvider>
+              <AuthProvider>
+                <ToastProvider>
+                  <SafeAreaProvider initialMetrics={providerInitialMetrics}>
+                  <SafeAreaFrameContext.Provider value={frame}>
+                    <SafeAreaInsetsContext.Provider value={insets}>
+                      {content}
+                    </SafeAreaInsetsContext.Provider>
+                  </SafeAreaFrameContext.Provider>
+                </SafeAreaProvider>
+                </ToastProvider>
+              </AuthProvider>
+            </FinanceiroProvider>
           </DataProvider>
         </EscolaProvider>
       </ThemeProvider>
@@ -127,11 +130,13 @@ export default function RootLayout() {
     <ThemeProvider>
       <EscolaProvider>
         <DataProvider>
-          <AuthProvider>
-            <ToastProvider>
-              <SafeAreaProvider initialMetrics={providerInitialMetrics}>{content}</SafeAreaProvider>
-            </ToastProvider>
-          </AuthProvider>
+          <FinanceiroProvider>
+            <AuthProvider>
+              <ToastProvider>
+                <SafeAreaProvider initialMetrics={providerInitialMetrics}>{content}</SafeAreaProvider>
+              </ToastProvider>
+            </AuthProvider>
+          </FinanceiroProvider>
         </DataProvider>
       </EscolaProvider>
     </ThemeProvider>
