@@ -399,6 +399,59 @@ export const LIMITES_POR_PLANO: Record<Plano, { usuarios: number; funcionalidade
 };
 
 
+// ============================================
+// TABELA: NOTIFICAÇÕES INTERNAS
+// ============================================
+
+export const tipoNotificacaoEnum = mysqlEnum("tipo_notificacao", [
+  "solicitacao_acesso",    // Novo usuário solicitou acesso
+  "usuario_aprovado",      // Usuário foi aprovado
+  "usuario_rejeitado",     // Usuário foi rejeitado
+  "convite_enviado",       // Convite foi enviado
+  "convite_aceito",        // Convite foi aceito
+  "convite_expirando",     // Convite prestes a expirar
+  "material_pendente",     // Material pendente de devolução
+  "evento_proximo",        // Evento nas próximas 24h
+  "evento_criado",         // Novo evento criado
+  "alerta_sistema",        // Alerta geral do sistema
+  "limite_usuarios",       // Próximo do limite de usuários
+  "plano_expirando",       // Plano prestes a expirar
+]);
+
+export const notificacoes = mysqlTable("notificacoes", {
+  id: int("id").autoincrement().primaryKey(),
+  
+  // Destinatário
+  usuarioId: int("usuario_id").notNull(),
+  escolaId: int("escola_id"),
+  
+  // Conteúdo
+  tipo: tipoNotificacaoEnum.notNull(),
+  titulo: varchar("titulo", { length: 255 }).notNull(),
+  mensagem: text("mensagem").notNull(),
+  
+  // Dados extras (JSON para flexibilidade)
+  dados: text("dados"), // JSON com dados adicionais
+  
+  // Link para ação
+  acaoUrl: varchar("acao_url", { length: 255 }),
+  acaoTexto: varchar("acao_texto", { length: 100 }),
+  
+  // Status
+  lida: boolean("lida").default(false).notNull(),
+  lidaEm: timestamp("lida_em"),
+  
+  // Metadados
+  criadoEm: timestamp("criado_em").defaultNow().notNull(),
+  expiraEm: timestamp("expira_em"),
+});
+
+export type Notificacao = typeof notificacoes.$inferSelect;
+export type InsertNotificacao = typeof notificacoes.$inferInsert;
+export type TipoNotificacao = "solicitacao_acesso" | "usuario_aprovado" | "usuario_rejeitado" | 
+  "convite_enviado" | "convite_aceito" | "convite_expirando" | "material_pendente" | 
+  "evento_proximo" | "evento_criado" | "alerta_sistema" | "limite_usuarios" | "plano_expirando";
+
 // Função auxiliar para verificar permissão
 export function temPermissaoRole(role: Role, permissao: PermissaoSistema): boolean {
   return PERMISSOES_POR_ROLE[role]?.includes(permissao) ?? false;

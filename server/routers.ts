@@ -224,7 +224,34 @@ export const appRouter = router({
           throw new TRPCError({ code: "FORBIDDEN", message: "Sem permissão" });
         }
 
+        // Verificar hierarquia de aprovação
+        const roleHierarquia: Record<string, number> = {
+          master: 5,
+          presidente: 4,
+          diretor: 3,
+          coordenador: 2,
+          integrante: 1,
+          contribuinte: 0,
+        };
+
+        const meuNivel = roleHierarquia[ctx.user.role] ?? 0;
+        const nivelAlvo = roleHierarquia[input.role] ?? 0;
+
+        // Só pode aprovar para níveis inferiores ao seu
+        if (nivelAlvo >= meuNivel && ctx.user.role !== "master") {
+          throw new TRPCError({ 
+            code: "FORBIDDEN", 
+            message: `Você não pode aprovar usuários como ${input.role}` 
+          });
+        }
+
         await db.updateUserRole(input.usuarioId, input.role, ctx.user.id);
+
+        // Notificar usuário aprovado
+        const escola = ctx.user.escolaId ? await db.getEscolaById(ctx.user.escolaId) : null;
+        if (escola) {
+          await db.notificarUsuarioAprovado(input.usuarioId, escola.nome);
+        }
 
         await db.registrarAuditoria({
           usuarioId: ctx.user.id,
@@ -240,7 +267,10 @@ export const appRouter = router({
 
     // Rejeitar usuário
     rejeitar: protectedProcedure
-      .input(z.object({ usuarioId: z.number() }))
+      .input(z.object({ 
+        usuarioId: z.number(),
+        motivo: z.string().max(500).optional(),
+      }))
       .mutation(async ({ ctx, input }) => {
         const temPermissao = await db.temPermissao(ctx.user.id, "escola.aprovar_usuarios");
         if (!temPermissao) {
@@ -249,12 +279,19 @@ export const appRouter = router({
 
         await db.updateUserStatus(input.usuarioId, "rejeitado", ctx.user.id);
 
+        // Notificar usuário rejeitado
+        const escola = ctx.user.escolaId ? await db.getEscolaById(ctx.user.escolaId) : null;
+        if (escola) {
+          await db.notificarUsuarioRejeitado(input.usuarioId, escola.nome, input.motivo);
+        }
+
         await db.registrarAuditoria({
           usuarioId: ctx.user.id,
           escolaId: ctx.user.escolaId ?? undefined,
           acao: "rejeitar",
           entidade: "usuario",
           entidadeId: String(input.usuarioId),
+          detalhes: input.motivo ? JSON.stringify({ motivo: input.motivo }) : undefined,
         });
 
         return { success: true };
@@ -435,6 +472,12 @@ export const appRouter = router({
           mensagem: input.mensagem,
         });
 
+        // Notificar gestores da escola sobre nova solicitação
+        await db.notificarSolicitacaoAcesso(
+          input.escolaId, 
+          ctx.user.name || ctx.user.email || "Novo usuário"
+        );
+
         return { success: true };
       }),
 
@@ -579,6 +622,93 @@ export const appRouter = router({
 
         return { success: true };
       }),
+  }),
+
+  // ============================================
+  // NOTIFICAÇÕES INTERNAS
+  // ============================================
+  notificacoes: router({
+    // Listar notificações do usuário
+    listar: protectedProcedure.query(async ({ ctx }) => {
+      return db.getNotificacoesUsuario(ctx.user.id);
+    }),
+
+    // Contar não lidas
+    contarNaoLidas: protectedProcedure.query(async ({ ctx }) => {
+      return db.contarNotificacoesNaoLidas(ctx.user.id);
+    }),
+
+    // Marcar como lida
+    marcarLida: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ ctx, input }) => {
+        await db.marcarNotificacaoLida(input.id, ctx.user.id);
+        return { success: true };
+      }),
+
+    // Marcar todas como lidas
+    marcarTodasLidas: protectedProcedure.mutation(async ({ ctx }) => {
+      await db.marcarTodasNotificacoesLidas(ctx.user.id);
+      return { success: true };
+    }),
+
+    // Excluir notificação
+    excluir: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ ctx, input }) => {
+        await db.excluirNotificacao(input.id, ctx.user.id);
+        return { success: true };
+      }),
+  }),
+
+  // ============================================
+  // DASHBOARD / MÉTRICAS
+  // ============================================
+  dashboard: router({
+    // Métricas gerais da escola (para presidente)
+    metricas: protectedProcedure.query(async ({ ctx }) => {
+      if (!ctx.user.escolaId) {
+        return null;
+      }
+
+      // Verificar se é gestor
+      const isGestor = ["master", "presidente", "diretor"].includes(ctx.user.role);
+      if (!isGestor) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "Acesso restrito a gestores" });
+      }
+
+      return db.getMetricasEscola(ctx.user.escolaId);
+    }),
+
+    // Usuários pendentes de aprovação
+    usuariosPendentes: protectedProcedure.query(async ({ ctx }) => {
+      if (!ctx.user.escolaId) return [];
+
+      const temPermissao = await db.temPermissao(ctx.user.id, "escola.aprovar_usuarios");
+      if (!temPermissao) return [];
+
+      return db.getUsuariosPendentes(ctx.user.escolaId);
+    }),
+
+    // Alertas do sistema
+    alertas: protectedProcedure.query(async ({ ctx }) => {
+      if (!ctx.user.escolaId) return [];
+
+      const isGestor = ["master", "presidente", "diretor"].includes(ctx.user.role);
+      if (!isGestor) return [];
+
+      return db.getAlertasSistema(ctx.user.escolaId);
+    }),
+
+    // Atividade recente
+    atividadeRecente: protectedProcedure.query(async ({ ctx }) => {
+      if (!ctx.user.escolaId) return [];
+
+      const isGestor = ["master", "presidente", "diretor"].includes(ctx.user.role);
+      if (!isGestor) return [];
+
+      return db.getAtividadeRecente(ctx.user.escolaId, 20);
+    }),
   }),
 });
 

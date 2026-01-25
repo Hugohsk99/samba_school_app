@@ -400,9 +400,30 @@ export default function HomeScreen() {
               👑 Gestão
             </Text>
             <View className="gap-3">
+              {/* Painel do Presidente - Destaque */}
+              <TouchableOpacity
+                onPress={() => handlePress(() => router.push("/painel-presidente"))}
+                className="flex-row items-center gap-4 rounded-2xl p-5"
+                style={{ backgroundColor: cores.primary }}
+                activeOpacity={0.8}
+              >
+                <View className="w-14 h-14 rounded-2xl bg-white/20 items-center justify-center">
+                  <Text className="text-3xl">📊</Text>
+                </View>
+                <View className="flex-1">
+                  <Text className="text-white text-lg font-bold">
+                    Painel do Presidente
+                  </Text>
+                  <Text className="text-white/80 text-base">
+                    Métricas, alertas e aprovações
+                  </Text>
+                </View>
+                <Text className="text-white/80 text-2xl">→</Text>
+              </TouchableOpacity>
+
               <TouchableOpacity
                 onPress={() => handlePress(() => router.push("/gestao-usuarios"))}
-                className="flex-row items-center gap-4 bg-surface border-2 border-primary rounded-2xl p-5"
+                className="flex-row items-center gap-4 bg-surface border border-border rounded-2xl p-5"
                 activeOpacity={0.8}
               >
                 <View 

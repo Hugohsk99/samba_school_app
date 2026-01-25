@@ -1,4 +1,4 @@
-import { eq, and, sql } from "drizzle-orm";
+import { eq, and, sql, desc } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import { 
   InsertUser, 
@@ -15,6 +15,9 @@ import {
   InsertUsuarioBloco,
   auditLog,
   InsertAuditLog,
+  notificacoes,
+  InsertNotificacao,
+  TipoNotificacao,
   Role,
   StatusUsuario,
   PERMISSOES_POR_ROLE,
@@ -465,4 +468,294 @@ export async function seedMasterUser(openId: string, email: string, nome: string
 
   console.log("[Seed] Master user created successfully");
   return getUserByOpenId(openId);
+}
+
+// ============================================
+// NOTIFICAÇÕES INTERNAS
+// ============================================
+
+export async function criarNotificacao(notificacao: InsertNotificacao) {
+  const db = await getDb();
+  if (!db) {
+    console.warn("[Notificacao] Cannot create: database not available");
+    return;
+  }
+
+  try {
+    await db.insert(notificacoes).values(notificacao);
+  } catch (error) {
+    console.error("[Notificacao] Failed to create:", error);
+  }
+}
+
+export async function getNotificacoesUsuario(usuarioId: number) {
+  const db = await getDb();
+  if (!db) return [];
+
+  return db.select()
+    .from(notificacoes)
+    .where(eq(notificacoes.usuarioId, usuarioId))
+    .orderBy(desc(notificacoes.criadoEm))
+    .limit(50);
+}
+
+export async function contarNotificacoesNaoLidas(usuarioId: number): Promise<number> {
+  const db = await getDb();
+  if (!db) return 0;
+
+  const result = await db.select({ count: sql<number>`count(*)` })
+    .from(notificacoes)
+    .where(and(
+      eq(notificacoes.usuarioId, usuarioId),
+      eq(notificacoes.lida, false)
+    ));
+
+  return result[0]?.count ?? 0;
+}
+
+export async function marcarNotificacaoLida(id: number, usuarioId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  await db.update(notificacoes)
+    .set({ lida: true, lidaEm: new Date() })
+    .where(and(
+      eq(notificacoes.id, id),
+      eq(notificacoes.usuarioId, usuarioId)
+    ));
+}
+
+export async function marcarTodasNotificacoesLidas(usuarioId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  await db.update(notificacoes)
+    .set({ lida: true, lidaEm: new Date() })
+    .where(and(
+      eq(notificacoes.usuarioId, usuarioId),
+      eq(notificacoes.lida, false)
+    ));
+}
+
+export async function excluirNotificacao(id: number, usuarioId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  await db.delete(notificacoes)
+    .where(and(
+      eq(notificacoes.id, id),
+      eq(notificacoes.usuarioId, usuarioId)
+    ));
+}
+
+// Notificar gestores sobre nova solicitação de acesso
+export async function notificarSolicitacaoAcesso(escolaId: number, solicitanteNome: string) {
+  const db = await getDb();
+  if (!db) return;
+
+  // Buscar gestores da escola (presidente e diretores)
+  const gestores = await db.select()
+    .from(users)
+    .where(and(
+      eq(users.escolaId, escolaId),
+      sql`${users.role} IN ('master', 'presidente', 'diretor')`,
+      eq(users.statusUsuario, "aprovado")
+    ));
+
+  // Criar notificação para cada gestor
+  for (const gestor of gestores) {
+    await criarNotificacao({
+      usuarioId: gestor.id,
+      escolaId,
+      tipo: "solicitacao_acesso",
+      titulo: "Nova solicitação de acesso",
+      mensagem: `${solicitanteNome} solicitou acesso à escola. Acesse a gestão de usuários para aprovar ou rejeitar.`,
+      acaoUrl: "/gestao-usuarios",
+      acaoTexto: "Ver solicitações",
+    });
+  }
+}
+
+// Notificar usuário sobre aprovação
+export async function notificarUsuarioAprovado(usuarioId: number, escolaNome: string) {
+  await criarNotificacao({
+    usuarioId,
+    tipo: "usuario_aprovado",
+    titulo: "Acesso aprovado!",
+    mensagem: `Seu acesso à ${escolaNome} foi aprovado. Bem-vindo(a)!`,
+    acaoUrl: "/",
+    acaoTexto: "Acessar",
+  });
+}
+
+// Notificar usuário sobre rejeição
+export async function notificarUsuarioRejeitado(usuarioId: number, escolaNome: string, motivo?: string) {
+  await criarNotificacao({
+    usuarioId,
+    tipo: "usuario_rejeitado",
+    titulo: "Solicitação não aprovada",
+    mensagem: motivo 
+      ? `Sua solicitação de acesso à ${escolaNome} não foi aprovada. Motivo: ${motivo}`
+      : `Sua solicitação de acesso à ${escolaNome} não foi aprovada.`,
+  });
+}
+
+// ============================================
+// DASHBOARD / MÉTRICAS
+// ============================================
+
+export async function getMetricasEscola(escolaId: number) {
+  const db = await getDb();
+  if (!db) return null;
+
+  // Contar usuários por status
+  const usuariosResult = await db.select({
+    total: sql<number>`count(*)`,
+    aprovados: sql<number>`sum(case when ${users.statusUsuario} = 'aprovado' then 1 else 0 end)`,
+    pendentes: sql<number>`sum(case when ${users.statusUsuario} = 'pendente' then 1 else 0 end)`,
+  }).from(users).where(eq(users.escolaId, escolaId));
+
+  // Buscar escola para info do plano
+  const escola = await getEscolaById(escolaId);
+
+  // Contar por role
+  const porRole = await db.select({
+    role: users.role,
+    count: sql<number>`count(*)`,
+  })
+    .from(users)
+    .where(and(
+      eq(users.escolaId, escolaId),
+      eq(users.statusUsuario, "aprovado")
+    ))
+    .groupBy(users.role);
+
+  // Solicitações pendentes
+  const solicitacoesPendentes = await db.select({ count: sql<number>`count(*)` })
+    .from(solicitacoesAcesso)
+    .where(and(
+      eq(solicitacoesAcesso.escolaId, escolaId),
+      eq(solicitacoesAcesso.status, "pendente")
+    ));
+
+  // Convites ativos
+  const convitesAtivos = await db.select({ count: sql<number>`count(*)` })
+    .from(convites)
+    .where(and(
+      eq(convites.escolaId, escolaId),
+      sql`${convites.usadoPor} IS NULL`,
+      sql`${convites.expiraEm} > NOW()`
+    ));
+
+  return {
+    usuarios: {
+      total: usuariosResult[0]?.total ?? 0,
+      aprovados: usuariosResult[0]?.aprovados ?? 0,
+      pendentes: usuariosResult[0]?.pendentes ?? 0,
+    },
+    porRole: porRole.reduce((acc, item) => {
+      acc[item.role] = item.count;
+      return acc;
+    }, {} as Record<string, number>),
+    solicitacoesPendentes: solicitacoesPendentes[0]?.count ?? 0,
+    convitesAtivos: convitesAtivos[0]?.count ?? 0,
+    plano: escola?.plano ?? "gratuito",
+    limiteUsuarios: escola?.limiteUsuarios ?? 50,
+    planoExpiraEm: escola?.planoExpiraEm,
+  };
+}
+
+export async function getAlertasSistema(escolaId: number) {
+  const alertas: Array<{
+    tipo: string;
+    titulo: string;
+    mensagem: string;
+    cor: string;
+    acaoUrl?: string;
+  }> = [];
+
+  const db = await getDb();
+  if (!db) return alertas;
+
+  // Verificar limite de usuários
+  const escola = await getEscolaById(escolaId);
+  if (escola) {
+    const totalUsuarios = await countUsuariosEscola(escolaId);
+    const percentual = (totalUsuarios / escola.limiteUsuarios) * 100;
+
+    if (percentual >= 90) {
+      alertas.push({
+        tipo: "limite_usuarios",
+        titulo: "Limite de usuários",
+        mensagem: `Você está usando ${totalUsuarios} de ${escola.limiteUsuarios} usuários (${Math.round(percentual)}%)`,
+        cor: percentual >= 100 ? "#EF4444" : "#F59E0B",
+        acaoUrl: "/configuracoes",
+      });
+    }
+
+    // Verificar expiração do plano
+    if (escola.planoExpiraEm) {
+      const diasRestantes = Math.ceil((escola.planoExpiraEm.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+      if (diasRestantes <= 30 && diasRestantes > 0) {
+        alertas.push({
+          tipo: "plano_expirando",
+          titulo: "Plano expirando",
+          mensagem: `Seu plano ${escola.plano} expira em ${diasRestantes} dias`,
+          cor: diasRestantes <= 7 ? "#EF4444" : "#F59E0B",
+          acaoUrl: "/configuracoes",
+        });
+      }
+    }
+  }
+
+  // Verificar solicitações pendentes
+  const pendentes = await db.select({ count: sql<number>`count(*)` })
+    .from(solicitacoesAcesso)
+    .where(and(
+      eq(solicitacoesAcesso.escolaId, escolaId),
+      eq(solicitacoesAcesso.status, "pendente")
+    ));
+
+  if ((pendentes[0]?.count ?? 0) > 0) {
+    alertas.push({
+      tipo: "solicitacoes_pendentes",
+      titulo: "Solicitações pendentes",
+      mensagem: `${pendentes[0]?.count} usuário(s) aguardando aprovação`,
+      cor: "#3B82F6",
+      acaoUrl: "/gestao-usuarios",
+    });
+  }
+
+  // Verificar convites expirando
+  const convitesExpirando = await db.select({ count: sql<number>`count(*)` })
+    .from(convites)
+    .where(and(
+      eq(convites.escolaId, escolaId),
+      sql`${convites.usadoPor} IS NULL`,
+      sql`${convites.expiraEm} > NOW()`,
+      sql`${convites.expiraEm} < DATE_ADD(NOW(), INTERVAL 3 DAY)`
+    ));
+
+  if ((convitesExpirando[0]?.count ?? 0) > 0) {
+    alertas.push({
+      tipo: "convites_expirando",
+      titulo: "Convites expirando",
+      mensagem: `${convitesExpirando[0]?.count} convite(s) expiram em breve`,
+      cor: "#F59E0B",
+      acaoUrl: "/convites",
+    });
+  }
+
+  return alertas;
+}
+
+export async function getAtividadeRecente(escolaId: number, limite: number = 20) {
+  const db = await getDb();
+  if (!db) return [];
+
+  return db.select()
+    .from(auditLog)
+    .where(eq(auditLog.escolaId, escolaId))
+    .orderBy(desc(auditLog.criadoEm))
+    .limit(limite);
 }

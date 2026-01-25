@@ -471,3 +471,33 @@
 - [x] Criar usuário master para testes
 - [x] Testar cada nível de permissão
 - [x] Validar fluxo de aprovação
+
+
+## Sprint 15 - Painel do Presidente e Notificações Internas
+
+### Sistema de Notificações Internas
+- [x] Criar tabela de notificações no banco de dados
+- [x] Implementar contexto de notificações no frontend
+- [x] Criar componente de badge de notificações
+- [x] Implementar tela de listagem de notificações
+- [x] Adicionar marcação de lida/não lida
+
+### Painel do Presidente
+- [x] Criar dashboard exclusivo para presidente/master
+- [x] Implementar métricas completas (blocos, integrantes, eventos, materiais)
+- [x] Adicionar seção de usuários pendentes com ação rápida
+- [x] Mostrar status do plano e limites de uso
+- [x] Criar gráficos de crescimento e atividade
+- [x] Adicionar alertas importantes (vencimentos, pendências)
+
+### Fluxo de Aprovação Hierárquico
+- [x] Aprimorar lógica de quem pode aprovar quem
+- [x] Presidente aprova diretores e coordenadores
+- [x] Diretores podem aprovar integrantes do seu bloco
+- [x] Notificação automática ao solicitar acesso
+
+### Notificações Automáticas
+- [x] Notificar presidente quando novo usuário solicita acesso
+- [x] Alertar sobre materiais pendentes de devolução há mais de 30 dias
+- [x] Lembrar de eventos próximos (24h antes)
+- [x] Notificar sobre convites não utilizados prestes a expirar
