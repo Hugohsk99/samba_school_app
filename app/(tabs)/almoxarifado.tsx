@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ScrollView, Text, View, TouchableOpacity, FlatList, TextInput, Platform } from "react-native";
+import { ScrollView, Text, View, TouchableOpacity, FlatList, TextInput, Platform, Image } from "react-native";
 import { useRouter } from "expo-router";
 import { ScreenContainer } from "@/components/screen-container";
 import { useData } from "@/lib/data-context";
@@ -13,7 +13,7 @@ type FilterCategoria = 'todos' | CategoriaMaterial;
 
 export default function AlmoxarifadoScreen() {
   const router = useRouter();
-  const { materiais, blocos, entregasFantasias, isLoading } = useData();
+  const { materiais, blocos, entregasFantasias, integrantes, isLoading } = useData();
   const { escola } = useEscola();
   const { temPermissao } = useAuth();
   const [filterCategoria, setFilterCategoria] = useState<FilterCategoria>('todos');
@@ -56,6 +56,25 @@ export default function AlmoxarifadoScreen() {
     return bloco?.nome;
   };
 
+  // Obter integrante que está com o material
+  const getIntegranteComMaterial = (materialId: string) => {
+    const entrega = entregasFantasias.find(
+      e => e.materialId === materialId && e.status === 'entregue'
+    );
+    if (entrega) {
+      const integrante = integrantes.find(i => i.id === entrega.integranteId);
+      return integrante;
+    }
+    return null;
+  };
+
+  // Verificar se material está emprestado
+  const materialEstaEmprestado = (materialId: string) => {
+    return entregasFantasias.some(
+      e => e.materialId === materialId && e.status === 'entregue'
+    );
+  };
+
   const handleAddMaterial = () => {
     if (Platform.OS !== "web") {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -88,9 +107,33 @@ export default function AlmoxarifadoScreen() {
     router.push(`/historico-material?materialId=${materialId}`);
   };
 
+  // Entregar material específico
+  const handleEntregarMaterial = (materialId: string) => {
+    if (Platform.OS !== "web") {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    }
+    router.push(`/entrega-fantasia?materialId=${materialId}`);
+  };
+
+  // Devolver material específico
+  const handleDevolverMaterial = (materialId: string) => {
+    if (Platform.OS !== "web") {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    }
+    // Encontrar a entrega pendente deste material
+    const entrega = entregasFantasias.find(
+      e => e.materialId === materialId && e.status === 'entregue'
+    );
+    if (entrega) {
+      router.push(`/devolucao-fantasia?entregaId=${entrega.id}`);
+    }
+  };
+
   const renderMaterial = ({ item }: { item: Material }) => {
     const emFalta = item.quantidadeDisponivel < item.quantidadeNecessaria;
     const blocoNome = getBlocoNome(item.blocoId);
+    const estaEmprestado = materialEstaEmprestado(item.id);
+    const integranteComMaterial = getIntegranteComMaterial(item.id);
     
     return (
       <TouchableOpacity
@@ -133,8 +176,51 @@ export default function AlmoxarifadoScreen() {
           )}
         </View>
 
+        {/* Status de empréstimo - DESTAQUE */}
+        {estaEmprestado && integranteComMaterial && (
+          <View className="bg-warning/15 border border-warning/30 rounded-xl p-3 mb-3">
+            <View className="flex-row items-center gap-2">
+              <Text className="text-warning text-lg">📦</Text>
+              <View className="flex-1">
+                <Text className="text-warning text-xs font-bold uppercase">Emprestado para:</Text>
+                <View className="flex-row items-center gap-2 mt-1">
+                  {integranteComMaterial.foto ? (
+                    <Image
+                      source={{ uri: integranteComMaterial.foto }}
+                      className="w-8 h-8 rounded-full"
+                      resizeMode="cover"
+                    />
+                  ) : (
+                    <View className="w-8 h-8 rounded-full bg-warning/30 items-center justify-center">
+                      <Text className="text-warning text-xs">👤</Text>
+                    </View>
+                  )}
+                  <View className="flex-1">
+                    <Text className="text-foreground font-semibold">{integranteComMaterial.nome}</Text>
+                    <Text className="text-muted text-xs">{integranteComMaterial.telefone}</Text>
+                  </View>
+                </View>
+              </View>
+            </View>
+            
+            {/* Botão de devolver */}
+            {temPermissao("editarMaterial") && (
+              <TouchableOpacity
+                onPress={(e) => {
+                  e.stopPropagation();
+                  handleDevolverMaterial(item.id);
+                }}
+                className="mt-2 bg-warning rounded-lg py-2 items-center"
+                activeOpacity={0.8}
+              >
+                <Text className="text-white font-bold text-sm">🔄 Registrar Devolução</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        )}
+
         {/* Quantidades */}
-        <View className="flex-row items-center gap-4 mt-3 pt-3 border-t border-border">
+        <View className="flex-row items-center gap-4 mt-2 pt-3 border-t border-border">
           <View className="flex-1 items-center">
             <Text className="text-muted text-xs mb-1">Necessário</Text>
             <Text className="text-foreground text-lg font-bold">
@@ -162,17 +248,35 @@ export default function AlmoxarifadoScreen() {
           </View>
         )}
 
-        {/* Botão de histórico */}
-        <TouchableOpacity
-          onPress={(e) => {
-            e.stopPropagation();
-            handleHistoricoMaterial(item.id);
-          }}
-          className="mt-3 pt-3 border-t border-border flex-row items-center justify-center gap-2"
-          activeOpacity={0.7}
-        >
-          <Text className="text-primary text-sm font-medium">📋 Ver Histórico de Movimentações</Text>
-        </TouchableOpacity>
+        {/* Botões de ação */}
+        <View className="flex-row gap-2 mt-3 pt-3 border-t border-border">
+          {/* Botão de entregar (só se disponível) */}
+          {temPermissao("editarMaterial") && item.quantidadeDisponivel > 0 && !estaEmprestado && (
+            <TouchableOpacity
+              onPress={(e) => {
+                e.stopPropagation();
+                handleEntregarMaterial(item.id);
+              }}
+              className="flex-1 py-2 rounded-lg items-center flex-row justify-center gap-1"
+              style={{ backgroundColor: corPrimaria }}
+              activeOpacity={0.8}
+            >
+              <Text className="text-white text-sm font-bold">👗 Entregar</Text>
+            </TouchableOpacity>
+          )}
+          
+          {/* Botão de histórico */}
+          <TouchableOpacity
+            onPress={(e) => {
+              e.stopPropagation();
+              handleHistoricoMaterial(item.id);
+            }}
+            className={`${temPermissao("editarMaterial") && item.quantidadeDisponivel > 0 && !estaEmprestado ? 'flex-1' : 'flex-1'} py-2 rounded-lg items-center flex-row justify-center gap-1 bg-surface border border-border`}
+            activeOpacity={0.7}
+          >
+            <Text className="text-primary text-sm font-medium">📋 Histórico</Text>
+          </TouchableOpacity>
+        </View>
       </TouchableOpacity>
     );
   };
@@ -211,7 +315,7 @@ export default function AlmoxarifadoScreen() {
             </View>
           </View>
 
-          {/* Botões de Entrega e Devolução */}
+          {/* Botões de Entrega e Devolução - DESTAQUE */}
           {temPermissao("editarMaterial") && (
             <View className="flex-row gap-3 mb-4">
               <TouchableOpacity
@@ -223,23 +327,47 @@ export default function AlmoxarifadoScreen() {
                 <Text className="text-white text-xl">👗</Text>
                 <View>
                   <Text className="text-white text-sm font-bold">Entregar</Text>
-                  <Text className="text-white/80 text-xs">Fantasia</Text>
+                  <Text className="text-white/80 text-xs">Material/Fantasia</Text>
                 </View>
               </TouchableOpacity>
 
               <TouchableOpacity
                 onPress={handleDevolucaoFantasia}
-                className="flex-1 p-4 rounded-xl flex-row items-center justify-center gap-2 bg-surface border-2"
-                style={{ borderColor: corPrimaria }}
+                className={`flex-1 p-4 rounded-xl flex-row items-center justify-center gap-2 ${entregasPendentes > 0 ? 'bg-warning' : 'bg-surface border-2'}`}
+                style={entregasPendentes === 0 ? { borderColor: corPrimaria } : {}}
                 activeOpacity={0.8}
               >
                 <Text className="text-xl">🔄</Text>
                 <View>
-                  <Text style={{ color: corPrimaria }} className="text-sm font-bold">Devolver</Text>
-                  <Text className="text-muted text-xs">{entregasPendentes} pendentes</Text>
+                  <Text className={`text-sm font-bold ${entregasPendentes > 0 ? 'text-white' : ''}`} style={entregasPendentes === 0 ? { color: corPrimaria } : {}}>
+                    Devolver
+                  </Text>
+                  <Text className={`text-xs ${entregasPendentes > 0 ? 'text-white/80' : 'text-muted'}`}>
+                    {entregasPendentes} pendente{entregasPendentes !== 1 ? 's' : ''}
+                  </Text>
                 </View>
               </TouchableOpacity>
             </View>
+          )}
+
+          {/* Alerta de pendências */}
+          {entregasPendentes > 0 && (
+            <TouchableOpacity
+              onPress={handleDevolucaoFantasia}
+              className="bg-warning/15 border border-warning/30 rounded-xl p-3 mb-4 flex-row items-center gap-2"
+              activeOpacity={0.8}
+            >
+              <Text className="text-warning text-xl">⚠️</Text>
+              <View className="flex-1">
+                <Text className="text-warning font-bold">
+                  {entregasPendentes} item(s) emprestado(s)
+                </Text>
+                <Text className="text-muted text-xs">
+                  Toque aqui para ver e registrar devoluções
+                </Text>
+              </View>
+              <Text className="text-warning text-lg">→</Text>
+            </TouchableOpacity>
           )}
 
           {/* Campo de Busca */}

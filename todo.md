@@ -385,3 +385,24 @@
 - [x] Implementar relatório de materiais e empréstimos
 - [x] Implementar relatório de eventos
 - [x] Adicionar opção de compartilhar relatório via WhatsApp/email
+
+
+## Sprint 12 - Revisão e Correção do Fluxo de Materiais/Fantasias
+
+### Correções no Fluxo de Entrega
+- [x] Revisar e corrigir fluxo de entrega de materiais/fantasias
+- [x] Garantir que botão de entrega esteja visível e acessível
+- [x] Melhorar seleção de material e integrante no processo de entrega
+- [x] Adicionar feedback visual claro após entrega bem-sucedida
+
+### Correções no Fluxo de Devolução
+- [x] Revisar e corrigir fluxo de devolução de materiais/fantasias
+- [x] Garantir que itens emprestados apareçam como pendentes de devolução
+- [x] Melhorar interface de seleção de itens para devolução
+- [x] Adicionar estado de conservação obrigatório na devolução
+
+### Melhorias de Interface
+- [x] Melhorar visualização de status dos materiais (disponível/emprestado)
+- [x] Adicionar indicadores visuais claros de quem está com cada material
+- [x] Criar atalhos rápidos para entrega e devolução na tela de estoque
+- [x] Testar fluxo completo: entrega → pendente → devolução
