@@ -331,10 +331,10 @@ export default function EnsaioFormScreen() {
               />
             </View>
 
-            {/* Campo: Blocos Participantes */}
+            {/* Campo: Segmentos Participantes */}
             <View>
               <Text className="text-foreground text-base font-semibold mb-3">
-                🎪 Blocos Participantes
+                🎪 Segmentos Participantes
               </Text>
               <View className="flex-row flex-wrap gap-2">
                 {/* Opção "Todos" */}
@@ -355,11 +355,11 @@ export default function EnsaioFormScreen() {
                         : "text-foreground"
                     }`}
                   >
-                    Todos os Blocos
+                    Todos os Segmentos
                   </Text>
                 </TouchableOpacity>
 
-                {/* Blocos individuais */}
+                {/* Segmentos individuais */}
                 {blocos.map((bloco) => (
                   <TouchableOpacity
                     key={bloco.id}

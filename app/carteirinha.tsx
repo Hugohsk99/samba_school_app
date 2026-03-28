@@ -237,7 +237,7 @@ export default function CarteirinhaScreen() {
                 </Text>
               )}
 
-              {/* Blocos */}
+              {/* Segmentos */}
               {getBlocosNomes() && (
                 <Text className="text-muted text-sm text-center mb-4">
                   {getBlocosNomes()}

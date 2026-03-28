@@ -38,7 +38,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="blocos"
         options={{
-          title: "Blocos",
+          title: "Segmentos",
           tabBarIcon: ({ color }) => <IconSymbol size={28} name="people.fill" color={color} />,
         }}
       />

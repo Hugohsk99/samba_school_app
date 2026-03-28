@@ -441,8 +441,8 @@ export default function EditarIntegranteScreen() {
             </View>
           )}
 
-          {/* Blocos */}
-          <Text className="text-foreground text-lg font-bold mt-6 mb-4">🎭 Blocos</Text>
+          {/* Segmentos */}
+          <Text className="text-foreground text-lg font-bold mt-6 mb-4">🎭 Segmentos</Text>
           <View className="flex-row flex-wrap gap-2 mb-4">
             {blocos.map((bloco) => (
               <TouchableOpacity

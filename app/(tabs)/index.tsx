@@ -67,8 +67,8 @@ export default function HomeScreen() {
     if (blocos.length === 0) {
       lista.push({
         tipo: 'warning',
-        titulo: '🎭 Cadastre seus blocos',
-        mensagem: 'Comece adicionando os blocos da escola',
+        titulo: '🎭 Cadastre seus segmentos',
+        mensagem: 'Comece adicionando os segmentos da escola',
         cor: '#F59E0B',
       });
     }
@@ -77,7 +77,7 @@ export default function HomeScreen() {
       lista.push({
         tipo: 'warning',
         titulo: '👥 Adicione integrantes',
-        mensagem: 'Cadastre os membros de cada bloco',
+        mensagem: 'Cadastre os membros de cada segmento',
         cor: '#F59E0B',
       });
     }
@@ -173,7 +173,7 @@ export default function HomeScreen() {
               >
                 <Text className="text-3xl">🎭</Text>
               </View>
-              <Text className="text-muted text-base font-medium">Blocos</Text>
+              <Text className="text-muted text-base font-medium">Segmentos</Text>
               <Text className="text-foreground text-4xl font-bold mt-1">
                 {stats.totalBlocos}
               </Text>
@@ -531,7 +531,7 @@ export default function HomeScreen() {
             <View className="gap-4">
               <View className="flex-row items-center justify-between">
                 <Text className="text-foreground text-xl font-bold">
-                  🎭 Blocos
+                  🎭 Segmentos
                 </Text>
                 <TouchableOpacity onPress={() => handlePress(() => router.push("/(tabs)/blocos"))}>
                   <Text className="text-base font-medium" style={{ color: cores.primary }}>

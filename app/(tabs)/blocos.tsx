@@ -123,7 +123,7 @@ export default function BlocosScreen() {
       <ScreenContainer>
         <View className="flex-1 items-center justify-center">
           <ActivityIndicator size="large" color="#FF6B35" />
-          <Text className="text-muted mt-4">Carregando blocos...</Text>
+          <Text className="text-muted mt-4">Carregando segmentos...</Text>
         </View>
       </ScreenContainer>
     );
@@ -136,7 +136,7 @@ export default function BlocosScreen() {
         <View className="px-6 pt-6 pb-4">
           <View className="flex-row items-center justify-between mb-2">
             <Text className="text-3xl font-bold text-foreground">
-              Blocos
+              Segmentos
             </Text>
             <TouchableOpacity
               onPress={handleAddBloco}
@@ -146,14 +146,14 @@ export default function BlocosScreen() {
             </TouchableOpacity>
           </View>
           <Text className="text-base text-muted mb-4">
-            {blocos.length} {blocos.length === 1 ? 'bloco cadastrado' : 'blocos cadastrados'}
+            {blocos.length} {blocos.length === 1 ? 'segmento cadastrado' : 'segmentos cadastrados'}
           </Text>
 
           {/* Campo de Busca */}
           <View className="mb-4">
             <TextInput
               className="bg-surface border border-border rounded-xl px-4 py-3 text-foreground text-base"
-              placeholder="Buscar bloco..."
+              placeholder="Buscar segmento..."
               placeholderTextColor="#687076"
               value={searchQuery}
               onChangeText={setSearchQuery}
