@@ -464,6 +464,50 @@ export default function HomeScreen() {
                 </View>
                 <Text className="text-muted text-2xl">→</Text>
               </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={() => handlePress(() => router.push("/fila-aprovacao" as any))}
+                className="flex-row items-center gap-4 bg-surface border border-border rounded-2xl p-5"
+                activeOpacity={0.8}
+              >
+                <View 
+                  className="w-14 h-14 rounded-2xl items-center justify-center"
+                  style={{ backgroundColor: '#F59E0B20' }}
+                >
+                  <Text className="text-3xl">📋</Text>
+                </View>
+                <View className="flex-1">
+                  <Text className="text-foreground text-lg font-bold">
+                    Fila de Aprovação
+                  </Text>
+                  <Text className="text-muted text-base">
+                    Aprovar cadastros pendentes
+                  </Text>
+                </View>
+                <Text className="text-muted text-2xl">→</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={() => handlePress(() => router.push("/assinatura" as any))}
+                className="flex-row items-center gap-4 bg-surface border border-border rounded-2xl p-5"
+                activeOpacity={0.8}
+              >
+                <View 
+                  className="w-14 h-14 rounded-2xl items-center justify-center"
+                  style={{ backgroundColor: '#EC489920' }}
+                >
+                  <Text className="text-3xl">⭐</Text>
+                </View>
+                <View className="flex-1">
+                  <Text className="text-foreground text-lg font-bold">
+                    Assinatura
+                  </Text>
+                  <Text className="text-muted text-base">
+                    Status do plano e renovação
+                  </Text>
+                </View>
+                <Text className="text-muted text-2xl">→</Text>
+              </TouchableOpacity>
             </View>
           </View>
 

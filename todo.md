@@ -501,3 +501,64 @@
 - [x] Alertar sobre materiais pendentes de devolução há mais de 30 dias
 - [x] Lembrar de eventos próximos (24h antes)
 - [x] Notificar sobre convites não utilizados prestes a expirar
+
+
+## Sprint 18 - Evolução "100 Anos - Gestão do Samba"
+
+### Tela Landing / Seleção de Escola
+- [x] Criar tela landing como primeira tela do app
+- [x] Exibir escolas cadastradas em formato visual (ícones circulares)
+- [x] Primeira escola: Estácio S.A.
+- [x] Botão "+" com chamada para associação de novas escolas
+- [x] Informações de contato: email, WhatsApp (21 97584-1304 e 21 99930-4505)
+
+### Login por CPF + Senha
+- [x] Criar tela de login com CPF e senha
+- [x] Implementar validação de CPF
+- [x] Comportamento dinâmico: CPF não existe → cadastro; pendente → status; aprovado → home
+- [x] Link "Primeiro acesso? Cadastre-se"
+
+### Cadastro de Integrante com Comprovante PIX
+- [x] Criar formulário: nome, CPF, telefone, e-mail, ala/segmento pretendido
+- [x] Implementar upload de comprovante PIX (foto da galeria ou câmera)
+- [x] Status "aguardando aprovação" após envio
+- [x] Dados bloqueados para autoedição após aprovação
+
+### Gestão de Alas
+- [x] Criar CRUD de alas por escola
+- [x] Implementar limite de 50 integrantes por ala
+- [x] Criação automática de nova ala ao atingir limite
+- [x] Associar diretor de ala
+
+### Fila de Aprovação
+- [x] Criar tela de fila de aprovação para diretores
+- [x] Exibir comprovante PIX do solicitante
+- [x] Aprovar/rejeitar com motivo
+- [x] Notificação ao integrante sobre resultado
+- [x] Vincular integrante aprovado a ala
+
+### Tela de Contato/Associação
+- [x] Criar tela com informações de contato
+- [x] Links para e-mail e WhatsApp
+- [x] Formulário opcional de solicitação
+
+### Gestão de Assinatura/Plano
+- [x] Criar tela de status de assinatura
+- [x] Implementar lógica de trial (1 ano ou 3 meses)
+- [x] Plano anual R$10,00
+- [x] Bloquear funções administrativas quando expirado
+- [x] Manter leitura de eventos/calendário/notificações
+
+### Hierarquia Completa de Perfis (7 níveis)
+- [x] Master (100 Anos Gestão de Samba) - acesso global
+- [x] Diretor de Escola - máximo na escola
+- [x] Diretor de Carnaval - operacional avançado
+- [x] Diretor de Ala - restrito à ala
+- [x] Diretor de Segmento - restrito ao segmento
+- [x] Integrante Aprovado - leitura apenas
+- [x] Usuário Pendente - aguardando aprovação
+
+### Testes
+- [x] Testar fluxo completo: landing → login → cadastro → aprovação → acesso
+- [x] Testar hierarquia de permissões
+- [x] Testar gestão de alas com limite
