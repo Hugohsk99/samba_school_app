@@ -30,7 +30,7 @@ const DEFAULT_WEB_INSETS: EdgeInsets = { top: 0, right: 0, bottom: 0, left: 0 };
 const DEFAULT_WEB_FRAME: Rect = { x: 0, y: 0, width: 0, height: 0 };
 
 export const unstable_settings = {
-  initialRouteName: "landing",
+  initialRouteName: "index",
 };
 
 /**
@@ -65,17 +65,19 @@ function NavigationGuard({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (isLoading || !escolaChecked) return;
 
-    const inAuthGroup = segments[0] === "(tabs)";
-    const inLanding = segments[0] === "landing";
-    const inLogin = segments[0] === "login-cpf";
-    const inCadastro = segments[0] === "cadastro-integrante";
-    const inStatus = segments[0] === "status-cadastro";
-    const inContato = segments[0] === "contato-associacao";
-    const inOAuth = segments[0] === "oauth";
-    const inRegistroDiretor = segments[0] === "registro-diretor-carnaval";
+    const currentSegment = segments[0] as string | undefined;
+    const inAuthGroup = currentSegment === "(tabs)";
+    const inIndex = !currentSegment || currentSegment === "index";
+    const inLanding = currentSegment === "landing";
+    const inLogin = currentSegment === "login-cpf";
+    const inCadastro = currentSegment === "cadastro-integrante";
+    const inStatus = currentSegment === "status-cadastro";
+    const inContato = currentSegment === "contato-associacao";
+    const inOAuth = currentSegment === "oauth";
+    const inRegistroDiretor = currentSegment === "registro-diretor-carnaval";
 
     // Public routes that don't require auth
-    const isPublicRoute = inLanding || inLogin || inCadastro || inStatus || inContato || inOAuth || inRegistroDiretor;
+    const isPublicRoute = inIndex || inLanding || inLogin || inCadastro || inStatus || inContato || inOAuth || inRegistroDiretor;
 
     // If user is in protected area but not logged in → go to landing
     if (!isLoggedIn && inAuthGroup) {
@@ -115,7 +117,9 @@ function InnerLayout() {
     <AuthProvider>
       <NavigationGuard>
         <Stack screenOptions={{ headerShown: false }}>
-          {/* Landing is the initial route - escola selection */}
+          {/* Root redirect to landing */}
+          <Stack.Screen name="index" />
+          {/* Landing - escola selection */}
           <Stack.Screen name="landing" />
           {/* Login CPF + Senha */}
           <Stack.Screen name="login-cpf" />

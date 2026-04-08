@@ -13,6 +13,7 @@ import {
 import { useRouter } from "expo-router";
 import { ScreenContainer } from "@/components/screen-container";
 import { useEscola } from "@/lib/escola-context";
+import { useAuth } from "@/lib/auth-context";
 import { useToast } from "@/lib/toast-context";
 import * as Haptics from "expo-haptics";
 import * as ImagePicker from "expo-image-picker";
@@ -21,6 +22,7 @@ import { CORES_PREDEFINIDAS } from "@/lib/types";
 export default function ConfiguracoesScreen() {
   const router = useRouter();
   const { escola, updateEscola, resetConfig, isLoading } = useEscola();
+  const { logout, usuario, sessao } = useAuth();
   const { showSuccess, showError, showWarning, showInfo } = useToast();
 
   // Estados do formulário
@@ -554,6 +556,74 @@ export default function ConfiguracoesScreen() {
                     Remove todas as configurações da escola
                   </Text>
                 </View>
+              </TouchableOpacity>
+            </View>
+
+            {/* Seção: Conta / Sair */}
+            <View className="bg-surface rounded-2xl p-6 border border-border">
+              <Text className="text-foreground text-xl font-bold mb-2">
+                👤 Conta
+              </Text>
+              {(usuario || sessao) && (
+                <View className="mb-4 p-4 bg-background rounded-xl border border-border">
+                  <Text className="text-foreground text-lg font-semibold">
+                    {usuario?.nome || sessao?.nome || "Usuário"}
+                  </Text>
+                  <Text className="text-muted text-base mt-1">
+                    {usuario?.role === "master" ? "Administrador Master" : 
+                     usuario?.role === "diretor_carnaval" ? "Diretor de Carnaval" :
+                     usuario?.role === "diretor_escola" ? "Diretor de Escola" :
+                     usuario?.role === "diretor_ala" ? "Diretor de Ala" :
+                     usuario?.role === "integrante" ? "Integrante" :
+                     sessao?.role || ""}
+                  </Text>
+                  {usuario?.cpf && (
+                    <Text className="text-muted text-sm mt-1">
+                      CPF: {usuario.cpf.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4")}
+                    </Text>
+                  )}
+                </View>
+              )}
+
+              <TouchableOpacity
+                onPress={() => {
+                  if (Platform.OS !== "web") {
+                    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+                  }
+                  Alert.alert(
+                    "Sair do Aplicativo",
+                    "Você será desconectado e retornará à tela de seleção de escola.",
+                    [
+                      { text: "Cancelar", style: "cancel" },
+                      {
+                        text: "Sair",
+                        style: "destructive",
+                        onPress: async () => {
+                          try {
+                            await logout();
+                            showSuccess("Até logo!", "Você foi desconectado com sucesso.");
+                            router.replace("/landing" as any);
+                          } catch (error) {
+                            showError("Erro", "Não foi possível sair. Tente novamente.");
+                          }
+                        },
+                      },
+                    ]
+                  );
+                }}
+                className="bg-error rounded-xl p-4 flex-row items-center gap-3"
+                activeOpacity={0.8}
+              >
+                <Text className="text-3xl">🚪</Text>
+                <View className="flex-1">
+                  <Text className="text-white font-bold text-lg">
+                    Sair do Aplicativo
+                  </Text>
+                  <Text className="text-white/80 text-base">
+                    Desconectar e voltar à tela de escolas
+                  </Text>
+                </View>
+                <Text className="text-white text-2xl">›</Text>
               </TouchableOpacity>
             </View>
           </View>

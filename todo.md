@@ -634,3 +634,13 @@
 - [x] Corrigir NavigationGuard para verificar escola selecionada no AsyncStorage
 - [x] Corrigir landing.tsx para usar chave de sessão correta (@samba_sessao_v2)
 - [x] Corrigir label "Novo Bloco" para "Novo Segmento" nas Ações Rápidas (index.tsx + bloco-form.tsx)
+
+## Sprint 20.4 - Landing bypass definitivo + Botão Logoff
+
+- [x] Bug: Landing continua sendo pulada, app vai direto para dentro
+- [x] Investigar Expo Router file-based routing e por que (tabs) é carregado como rota padrão
+- [x] Criar app/index.tsx como redirect para /landing
+- [x] Garantir que NavigationGuard redirecione para /landing quando não autenticado
+- [x] Adicionar botão de Logoff dentro do app (Configurações → Conta → Sair)
+- [x] Botão de Logoff limpa sessão, usuário e escola selecionada
+- [x] Seção Conta mostra nome, role e CPF do usuário logado
