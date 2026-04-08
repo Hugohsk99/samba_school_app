@@ -7,6 +7,7 @@ import {
   varchar,
   boolean,
   uniqueIndex,
+  decimal,
 } from "drizzle-orm/mysql-core";
 
 // ============================================
@@ -119,6 +120,11 @@ export const users = mysqlTable("users", {
   
   // Comprovante PIX
   comprovantePix: text("comprovante_pix"),
+  
+  // Medidas corporais (JSON: altura, peito, cintura, quadril, etc.)
+  medidasJson: text("medidas_json"),
+  // Tamanhos de roupa (JSON: camisa, calça, sapato, etc.)
+  tamanhoRoupaJson: text("tamanho_roupa_json"),
   
   // Vinculação com dados de integrante (AsyncStorage)
   integranteId: varchar("integrante_id", { length: 36 }),
@@ -313,6 +319,23 @@ export const PERMISSOES_SISTEMA = [
   "almoxarifado.excluir",
   "almoxarifado.entregar_devolver",
   
+  // Patrimônio (Ativos Fixos)
+  "patrimonio.ver",
+  "patrimonio.cadastrar",
+  "patrimonio.editar",
+  "patrimonio.excluir",
+  "patrimonio.relatorios",
+  
+  // Painel do Presidente
+  "painel.ver",
+  "painel.metricas",
+  "painel.aprovacoes",
+  
+  // Presença
+  "presenca.registrar",
+  "presenca.ver",
+  "presenca.relatorios",
+  
   // Financeiro
   "financeiro.ver",
   "financeiro.cadastrar",
@@ -340,6 +363,14 @@ export const PERMISSOES_POR_ROLE: Record<Role, PermissaoSistema[]> = {
     "escola.editar",
     "escola.gerenciar_plano",
     "escola.aprovar_usuarios",
+    "painel.ver",
+    "painel.metricas",
+    "painel.aprovacoes",
+    "patrimonio.ver",
+    "patrimonio.cadastrar",
+    "patrimonio.editar",
+    "patrimonio.excluir",
+    "patrimonio.relatorios",
     "usuarios.ver_todos",
     "usuarios.cadastrar",
     "usuarios.editar",
@@ -373,6 +404,14 @@ export const PERMISSOES_POR_ROLE: Record<Role, PermissaoSistema[]> = {
   
   diretor_carnaval: [
     "escola.aprovar_usuarios",
+    "painel.ver",
+    "painel.metricas",
+    "painel.aprovacoes",
+    "patrimonio.ver",
+    "patrimonio.cadastrar",
+    "patrimonio.editar",
+    "patrimonio.excluir",
+    "patrimonio.relatorios",
     "usuarios.ver_todos",
     "usuarios.cadastrar",
     "usuarios.editar",
@@ -401,6 +440,10 @@ export const PERMISSOES_POR_ROLE: Record<Role, PermissaoSistema[]> = {
   
   diretor_ala: [
     "escola.aprovar_usuarios",
+    "painel.ver",
+    "patrimonio.ver",
+    "patrimonio.cadastrar",
+    "patrimonio.editar",
     "usuarios.ver_todos",
     "usuarios.cadastrar",
     "usuarios.editar",
@@ -504,6 +547,111 @@ export type InsertNotificacao = typeof notificacoes.$inferInsert;
 export type TipoNotificacao = "solicitacao_acesso" | "usuario_aprovado" | "usuario_rejeitado" | 
   "convite_enviado" | "convite_aceito" | "convite_expirando" | "material_pendente" | 
   "evento_proximo" | "evento_criado" | "alerta_sistema" | "limite_usuarios" | "plano_expirando";
+
+// ============================================
+// TABELA: ATIVOS FIXOS (PATRIMÔNIO)
+// ============================================
+
+export const statusAtivoEnum = mysqlEnum("status_ativo", [
+  "bom",
+  "regular",
+  "ruim",
+  "manutencao",
+  "baixado"
+]);
+
+export const categoriaAtivoEnum = mysqlEnum("categoria_ativo", [
+  "carnavalescos",
+  "instrumentos",
+  "fantasias",
+  "alegorias",
+  "aderecos",
+  "equipamentos",
+  "moveis",
+  "outros"
+]);
+
+export const ativosFixos = mysqlTable("ativos_fixos", {
+  id: int("id").autoincrement().primaryKey(),
+  
+  escolaId: int("escola_id").notNull(),
+  
+  // Identificação
+  nome: varchar("nome", { length: 255 }).notNull(),
+  descricao: text("descricao"),
+  categoria: categoriaAtivoEnum.default("outros").notNull(),
+  
+  // Valor e depreciação
+  valor: decimal("valor", { precision: 12, scale: 2 }).default("0.00").notNull(),
+  valorDepreciado: decimal("valor_depreciado", { precision: 12, scale: 2 }),
+  taxaDepreciacaoAnual: decimal("taxa_depreciacao_anual", { precision: 5, scale: 2 }).default("10.00"),
+  
+  // Datas
+  dataAquisicao: timestamp("data_aquisicao"),
+  dataUltimaManutencao: timestamp("data_ultima_manutencao"),
+  
+  // Status e localização
+  status: statusAtivoEnum.default("bom").notNull(),
+  localizacao: varchar("localizacao", { length: 255 }),
+  responsavelId: int("responsavel_id"),
+  
+  // Foto
+  fotoUrl: text("foto_url"),
+  
+  // Observações
+  observacoes: text("observacoes"),
+  
+  // Metadados
+  cadastradoPor: int("cadastrado_por"),
+  criadoEm: timestamp("criado_em").defaultNow().notNull(),
+  atualizadoEm: timestamp("atualizado_em").defaultNow().onUpdateNow().notNull(),
+  ativo: boolean("ativo").default(true).notNull(),
+});
+
+export type AtivoFixo = typeof ativosFixos.$inferSelect;
+export type InsertAtivoFixo = typeof ativosFixos.$inferInsert;
+export type StatusAtivo = "bom" | "regular" | "ruim" | "manutencao" | "baixado";
+export type CategoriaAtivo = "carnavalescos" | "instrumentos" | "fantasias" | "alegorias" | "aderecos" | "equipamentos" | "moveis" | "outros";
+
+// Nomes amigáveis
+export const NOMES_STATUS_ATIVO: Record<StatusAtivo, string> = {
+  bom: "Bom",
+  regular: "Regular",
+  ruim: "Ruim",
+  manutencao: "Em Manutenção",
+  baixado: "Baixado",
+};
+
+export const NOMES_CATEGORIA_ATIVO: Record<CategoriaAtivo, string> = {
+  carnavalescos: "Carnavalescos",
+  instrumentos: "Instrumentos",
+  fantasias: "Fantasias",
+  alegorias: "Alegorias",
+  aderecos: "Adereços",
+  equipamentos: "Equipamentos",
+  moveis: "Móveis",
+  outros: "Outros",
+};
+
+// ============================================
+// TABELA: ESCOLA-USUÁRIO (N:N para múltiplas escolas)
+// ============================================
+
+export const escolaUsuario = mysqlTable("escola_usuario", {
+  id: int("id").autoincrement().primaryKey(),
+  
+  escolaId: int("escola_id").notNull(),
+  usuarioId: int("usuario_id").notNull(),
+  role: roleEnum.default("integrante").notNull(),
+  ativo: boolean("ativo").default(true).notNull(),
+  
+  criadoEm: timestamp("criado_em").defaultNow().notNull(),
+}, (table) => ({
+  uniqueEscolaUsuario: uniqueIndex("unique_escola_usuario").on(table.escolaId, table.usuarioId),
+}));
+
+export type EscolaUsuario = typeof escolaUsuario.$inferSelect;
+export type InsertEscolaUsuario = typeof escolaUsuario.$inferInsert;
 
 // Função auxiliar para verificar permissão
 export function temPermissaoRole(role: Role, permissao: PermissaoSistema): boolean {

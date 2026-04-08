@@ -22,6 +22,9 @@ import {
   StatusUsuario,
   PERMISSOES_POR_ROLE,
   PermissaoSistema,
+  ativosFixos,
+  InsertAtivoFixo,
+  escolaUsuario,
 } from "../drizzle/schema";
 import { ENV } from "./_core/env";
 
@@ -896,4 +899,135 @@ export async function escolaTemDiretorCarnaval(escolaId: number): Promise<boolea
   ).limit(1);
 
   return result.length > 0;
+}
+
+
+// ============================================
+// ATIVOS FIXOS (PATRIMÔNIO) - CRUD
+// ============================================
+
+export async function getAtivosFixos(escolaId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(ativosFixos).where(
+    and(eq(ativosFixos.escolaId, escolaId), eq(ativosFixos.ativo, true))
+  ).orderBy(desc(ativosFixos.criadoEm));
+}
+
+export async function getAtivoFixoById(id: number) {
+  const db = await getDb();
+  if (!db) return null;
+  const result = await db.select().from(ativosFixos).where(eq(ativosFixos.id, id)).limit(1);
+  return result[0] ?? null;
+}
+
+export async function createAtivoFixo(data: InsertAtivoFixo) {
+  const db = await getDb();
+  if (!db) return null;
+  const result = await db.insert(ativosFixos).values(data);
+  return { id: Number(result[0].insertId) };
+}
+
+export async function updateAtivoFixo(id: number, data: Partial<InsertAtivoFixo>) {
+  const db = await getDb();
+  if (!db) return false;
+  await db.update(ativosFixos).set(data).where(eq(ativosFixos.id, id));
+  return true;
+}
+
+export async function deleteAtivoFixo(id: number) {
+  const db = await getDb();
+  if (!db) return false;
+  // Soft delete
+  await db.update(ativosFixos).set({ ativo: false }).where(eq(ativosFixos.id, id));
+  return true;
+}
+
+// ============================================
+// MÉTRICAS DO PAINEL DO PRESIDENTE
+// ============================================
+
+export async function getMetricasDashboard(escolaId: number) {
+  const db = await getDb();
+  if (!db) return null;
+
+  // Total de integrantes aprovados
+  const totalIntegrantes = await db.select({ count: sql<number>`count(*)` })
+    .from(users)
+    .where(and(eq(users.escolaId, escolaId), eq(users.statusUsuario, "aprovado")));
+
+  // Pendentes de aprovação
+  const pendentes = await db.select({ count: sql<number>`count(*)` })
+    .from(users)
+    .where(and(eq(users.escolaId, escolaId), eq(users.statusUsuario, "pendente")));
+
+  // Total de ativos fixos e valor total
+  const patrimonio = await db.select({ 
+    count: sql<number>`count(*)`,
+    valorTotal: sql<string>`COALESCE(SUM(valor), 0)`,
+  }).from(ativosFixos)
+    .where(and(eq(ativosFixos.escolaId, escolaId), eq(ativosFixos.ativo, true)));
+
+  // Ativos por status
+  const ativosPorStatus = await db.select({
+    status: ativosFixos.status,
+    count: sql<number>`count(*)`,
+  }).from(ativosFixos)
+    .where(and(eq(ativosFixos.escolaId, escolaId), eq(ativosFixos.ativo, true)))
+    .groupBy(ativosFixos.status);
+
+  // Ativos por categoria
+  const ativosPorCategoria = await db.select({
+    categoria: ativosFixos.categoria,
+    count: sql<number>`count(*)`,
+    valorTotal: sql<string>`COALESCE(SUM(valor), 0)`,
+  }).from(ativosFixos)
+    .where(and(eq(ativosFixos.escolaId, escolaId), eq(ativosFixos.ativo, true)))
+    .groupBy(ativosFixos.categoria);
+
+  // Integrantes por role
+  const integrantesPorRole = await db.select({
+    role: users.role,
+    count: sql<number>`count(*)`,
+  }).from(users)
+    .where(and(eq(users.escolaId, escolaId), eq(users.statusUsuario, "aprovado")))
+    .groupBy(users.role);
+
+  // Convites ativos
+  const convitesAtivos = await db.select({ count: sql<number>`count(*)` })
+    .from(convites)
+    .where(and(eq(convites.escolaId, escolaId), sql`${convites.usadoPor} IS NULL`));
+
+  // Notificações não lidas (para o admin)
+  const notificacoesNaoLidas = await db.select({ count: sql<number>`count(*)` })
+    .from(notificacoes)
+    .where(and(eq(notificacoes.escolaId, escolaId), eq(notificacoes.lida, false)));
+
+  // Escola info
+  const escolaInfo = await db.select().from(escolas).where(eq(escolas.id, escolaId)).limit(1);
+
+  return {
+    totalIntegrantes: Number(totalIntegrantes[0]?.count ?? 0),
+    pendentesAprovacao: Number(pendentes[0]?.count ?? 0),
+    totalAtivos: Number(patrimonio[0]?.count ?? 0),
+    valorPatrimonio: parseFloat(String(patrimonio[0]?.valorTotal ?? "0")),
+    ativosPorStatus: ativosPorStatus.map(s => ({ status: s.status, count: Number(s.count) })),
+    ativosPorCategoria: ativosPorCategoria.map(c => ({ 
+      categoria: c.categoria, 
+      count: Number(c.count),
+      valorTotal: parseFloat(String(c.valorTotal ?? "0")),
+    })),
+    integrantesPorRole: integrantesPorRole.map(r => ({ role: r.role, count: Number(r.count) })),
+    convitesAtivos: Number(convitesAtivos[0]?.count ?? 0),
+    notificacoesNaoLidas: Number(notificacoesNaoLidas[0]?.count ?? 0),
+    escola: escolaInfo[0] ?? null,
+  };
+}
+
+// Atualizar medidas corporais de um usuário
+export async function updateMedidasUsuario(userId: number, medidasJson: string, tamanhoRoupaJson: string) {
+  const db = await getDb();
+  if (!db) return false;
+  await db.update(users).set({ medidasJson, tamanhoRoupaJson }).where(eq(users.id, userId));
+  return true;
 }

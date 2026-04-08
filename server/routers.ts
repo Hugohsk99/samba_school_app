@@ -771,6 +771,126 @@ export const appRouter = router({
       return db.getAtividadeRecente(ctx.user.escolaId, 20);
     }),
   }),
+
+  // ============================================
+  // PATRIMÔNIO (ATIVOS FIXOS)
+  // ============================================
+  patrimonio: router({
+    listar: protectedProcedure.query(async ({ ctx }) => {
+      if (!ctx.user.escolaId) return [];
+      return db.getAtivosFixos(ctx.user.escolaId);
+    }),
+
+    buscarPorId: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .query(async ({ input }) => {
+        return db.getAtivoFixoById(input.id);
+      }),
+
+    criar: protectedProcedure
+      .input(z.object({
+        nome: z.string().min(1),
+        descricao: z.string().optional(),
+        categoria: z.enum(["carnavalescos", "instrumentos", "fantasias", "alegorias", "aderecos", "equipamentos", "moveis", "outros"]),
+        valor: z.string().optional(),
+        dataAquisicao: z.string().optional(),
+        status: z.enum(["bom", "regular", "ruim", "manutencao", "baixado"]).optional(),
+        localizacao: z.string().optional(),
+        responsavelId: z.number().optional(),
+        fotoUrl: z.string().optional(),
+        observacoes: z.string().optional(),
+        taxaDepreciacaoAnual: z.string().optional(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        if (!ctx.user.escolaId) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "Usu\u00e1rio sem escola vinculada" });
+        }
+        const temPermissao = await db.temPermissao(ctx.user.id, "patrimonio.cadastrar");
+        if (!temPermissao) {
+          throw new TRPCError({ code: "FORBIDDEN", message: "Sem permiss\u00e3o para cadastrar ativos" });
+        }
+        return db.createAtivoFixo({
+          ...input,
+          escolaId: ctx.user.escolaId,
+          cadastradoPor: ctx.user.id,
+          valor: input.valor || "0.00",
+          dataAquisicao: input.dataAquisicao ? new Date(input.dataAquisicao) : undefined,
+          taxaDepreciacaoAnual: input.taxaDepreciacaoAnual || "10.00",
+        });
+      }),
+
+    atualizar: protectedProcedure
+      .input(z.object({
+        id: z.number(),
+        nome: z.string().optional(),
+        descricao: z.string().optional(),
+        categoria: z.enum(["carnavalescos", "instrumentos", "fantasias", "alegorias", "aderecos", "equipamentos", "moveis", "outros"]).optional(),
+        valor: z.string().optional(),
+        status: z.enum(["bom", "regular", "ruim", "manutencao", "baixado"]).optional(),
+        localizacao: z.string().optional(),
+        responsavelId: z.number().optional(),
+        fotoUrl: z.string().optional(),
+        observacoes: z.string().optional(),
+        taxaDepreciacaoAnual: z.string().optional(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        const temPermissao = await db.temPermissao(ctx.user.id, "patrimonio.editar");
+        if (!temPermissao) {
+          throw new TRPCError({ code: "FORBIDDEN", message: "Sem permiss\u00e3o para editar ativos" });
+        }
+        const { id, ...data } = input;
+        return db.updateAtivoFixo(id, data);
+      }),
+
+    excluir: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ ctx, input }) => {
+        const temPermissao = await db.temPermissao(ctx.user.id, "patrimonio.excluir");
+        if (!temPermissao) {
+          throw new TRPCError({ code: "FORBIDDEN", message: "Sem permiss\u00e3o para excluir ativos" });
+        }
+        return db.deleteAtivoFixo(input.id);
+      }),
+  }),
+
+  // ============================================
+  // PAINEL DO PRESIDENTE (MÉTRICAS COMPLETAS)
+  // ============================================
+  painel: router({
+    metricasCompletas: protectedProcedure.query(async ({ ctx }) => {
+      if (!ctx.user.escolaId) return null;
+      if (!isGestor(ctx.user.role)) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "Acesso restrito a gestores" });
+      }
+      return db.getMetricasDashboard(ctx.user.escolaId);
+    }),
+
+    pendentes: protectedProcedure.query(async ({ ctx }) => {
+      if (!ctx.user.escolaId) return [];
+      const temPermissao = await db.temPermissao(ctx.user.id, "escola.aprovar_usuarios");
+      if (!temPermissao) return [];
+      return db.getUsuariosPendentes(ctx.user.escolaId);
+    }),
+  }),
+
+  // ============================================
+  // MEDIDAS CORPORAIS
+  // ============================================
+  medidas: router({
+    atualizar: protectedProcedure
+      .input(z.object({
+        userId: z.number(),
+        medidas: z.string(),
+        tamanhoRoupa: z.string(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        // Usu\u00e1rio pode editar as pr\u00f3prias medidas, ou gestor pode editar de qualquer um
+        if (ctx.user.id !== input.userId && !isGestor(ctx.user.role)) {
+          throw new TRPCError({ code: "FORBIDDEN", message: "Sem permiss\u00e3o" });
+        }
+        return db.updateMedidasUsuario(input.userId, input.medidas, input.tamanhoRoupa);
+      }),
+  }),
 });
 
 export type AppRouter = typeof appRouter;

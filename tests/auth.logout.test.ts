@@ -34,6 +34,8 @@ function createAuthContext(): { ctx: TrpcContext; clearedCookies: CookieCall[] }
     aprovadoEm: null,
     integranteId: null,
     comprovantePix: null,
+    medidasJson: null,
+    tamanhoRoupaJson: null,
     criadoEm: new Date(),
     atualizadoEm: new Date(),
     lastSignedIn: new Date(),

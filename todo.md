@@ -573,3 +573,37 @@
 - [x] Verificar que todas as telas estão acessíveis e navegáveis
 - [x] Garantir que a hierarquia de 7 perfis está funcional
 - [x] Testar fluxo completo end-to-end
+
+
+## Sprint 20 - Painel do Presidente e Ativos Fixos
+
+### Banco de Dados
+- [x] Criar tabela AtivosFixos (patrimônio)
+- [x] Adicionar campos de medidas corporais aos integrantes
+- [x] Adicionar campos de tamanho de roupa aos integrantes
+- [ ] Criar seed com dados de exemplo (Estácio + 5-10 integrantes)
+
+### Painel do Presidente (Refatorado)
+- [x] Dashboard com cards: Total integrantes, segmentos ativos, presenças hoje, patrimônio total
+- [x] Acesso CRUD completo: integrantes, segmentos, materiais, ativos fixos, eventos
+- [x] Visível para toda diretoria (não só presidente)
+- [x] Gestão de usuários com aprovação rápida
+
+### Nova Tela: Ativos Fixos (Patrimônio)
+- [x] CRUD completo de bens patrimoniais
+- [x] Campos: nome, descrição, valor, data aquisição, status (bom/ruim/manutenção)
+- [x] Categoria: carnavalescos, instrumentos, fantasias, outros
+- [x] Filtro por status e categoria
+- [x] Cálculo de depreciação
+- [ ] Upload de foto do ativo
+
+### Dados de Exemplo
+- [ ] Escola Estácio (ID=1) com dados completos
+- [ ] 5-10 integrantes com medidas corporais e tamanhos
+- [ ] Usuário teste: Márcio Aurélio / 123456Difininho
+- [ ] Usuário teste: Teste master adm / 123456Master
+
+### Testes
+- [x] Testar CRUD de ativos fixos
+- [x] Testar painel do presidente com métricas
+- [ ] Testar dados de exemplo carregados
