@@ -581,7 +581,7 @@
 - [x] Criar tabela AtivosFixos (patrimônio)
 - [x] Adicionar campos de medidas corporais aos integrantes
 - [x] Adicionar campos de tamanho de roupa aos integrantes
-- [ ] Criar seed com dados de exemplo (Estácio + 5-10 integrantes)
+- [x] Criar seed com dados de exemplo (Estácio + 8 integrantes + 10 ativos fixos)
 
 ### Painel do Presidente (Refatorado)
 - [x] Dashboard com cards: Total integrantes, segmentos ativos, presenças hoje, patrimônio total
@@ -598,12 +598,21 @@
 - [ ] Upload de foto do ativo
 
 ### Dados de Exemplo
-- [ ] Escola Estácio (ID=1) com dados completos
-- [ ] 5-10 integrantes com medidas corporais e tamanhos
-- [ ] Usuário teste: Márcio Aurélio / 123456Difininho
-- [ ] Usuário teste: Teste master adm / 123456Master
+- [x] Escola Estácio (ID=1) com dados completos
+- [x] 8 integrantes com medidas corporais e tamanhos
+- [x] Usuário teste: Márcio Aurélio / CPF 999.999.999-01 / 123456Difininho
+- [x] Usuário teste: Teste Master ADM / CPF 999.999.999-02 / 123456Master
 
 ### Testes
 - [x] Testar CRUD de ativos fixos
 - [x] Testar painel do presidente com métricas
-- [ ] Testar dados de exemplo carregados
+- [x] Testar dados de exemplo carregados
+
+## Sprint 20.1 - Correção de Fluxo de Login e Seed de Usuários de Teste
+
+### Bug: Landing redireciona para registro de diretor em vez de login
+- [x] Investigar fluxo Landing → escolaTemDiretorCarnaval → login/registro
+- [x] Criar seed de usuários de teste no banco de dados
+- [x] Garantir que ao clicar na escola, vá para tela de login CPF
+- [x] Usuários de teste com CPF genérico (999.999.999-XX)
+- [x] Testar fluxo completo: Landing → Login → Home
