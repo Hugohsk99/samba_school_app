@@ -16,7 +16,7 @@ import { ScreenContainer } from "@/components/screen-container";
 import { useColors } from "@/hooks/use-colors";
 import { useRouter } from "expo-router";
 import { trpc } from "@/lib/trpc";
-import { useAuth } from "@/hooks/use-auth";
+import { useAuth } from "@/lib/auth-context";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import * as Haptics from "expo-haptics";
 
@@ -514,7 +514,7 @@ function AtivoDetalheModal({
 export default function AtivosFixosScreen() {
   const colors = useColors();
   const router = useRouter();
-  const { user } = useAuth();
+  const { usuario, role } = useAuth();
   const [refreshing, setRefreshing] = useState(false);
   const [filtroCategoria, setFiltroCategoria] = useState<CategoriaAtivo | "todos">("todos");
   const [filtroStatus, setFiltroStatus] = useState<StatusAtivo | "todos">("todos");

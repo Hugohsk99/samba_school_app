@@ -6,7 +6,7 @@
 
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from "react";
 import { trpc } from "./trpc";
-import { useAuth } from "@/hooks/use-auth";
+import { useAuth } from "@/lib/auth-context";
 
 // Tipos
 export type TipoNotificacao = 
@@ -81,7 +81,7 @@ export const CORES_NOTIFICACAO: Record<TipoNotificacao, string> = {
 };
 
 export function NotificacoesProvider({ children }: { children: ReactNode }) {
-  const { isAuthenticated } = useAuth();
+  const { isLoggedIn: isAuthenticated } = useAuth();
   const [notificacoes, setNotificacoes] = useState<NotificacaoInterna[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 

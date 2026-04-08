@@ -4,7 +4,7 @@ import { useColors } from "@/hooks/use-colors";
 import { useRouter } from "expo-router";
 import { useState, useCallback } from "react";
 import { trpc } from "@/lib/trpc";
-import { useAuth } from "@/hooks/use-auth";
+import { useAuth } from "@/lib/auth-context";
 import { NotificationBadge } from "@/components/notification-badge";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import * as Haptics from "expo-haptics";
@@ -54,7 +54,7 @@ function formatCurrency(value: number): string {
 export default function PainelPresidenteScreen() {
   const colors = useColors();
   const router = useRouter();
-  const { user } = useAuth();
+  const { usuario, role, isGestor: isGestorAuth } = useAuth();
   const [refreshing, setRefreshing] = useState(false);
 
   // Queries - Dashboard e Painel
@@ -115,7 +115,7 @@ export default function PainelPresidenteScreen() {
     ]);
   };
 
-  const isGestor = user && ["master", "diretor_escola", "diretor_carnaval", "diretor_ala"].includes((user as any).role || "");
+  const isGestor = isGestorAuth;
   const loading = dashMetricas.isLoading || painelMetricas.isLoading;
   const dm = dashMetricas.data as any;
   const pm = painelMetricas.data as any;
@@ -151,7 +151,7 @@ export default function PainelPresidenteScreen() {
             <View>
               <Text className="text-2xl font-bold text-foreground">Painel da Diretoria</Text>
               <Text className="text-sm text-muted">
-                Olá, {user?.name?.split(" ")[0] || "Diretor"}
+                Olá, {usuario?.nome?.split(" ")[0] || "Diretor"}
               </Text>
             </View>
           </View>

@@ -616,3 +616,12 @@
 - [x] Garantir que ao clicar na escola, vá para tela de login CPF
 - [x] Usuários de teste com CPF genérico (999.999.999-XX)
 - [x] Testar fluxo completo: Landing → Login → Home
+
+## Sprint 20.2 - Bug: Acesso Restrito no Painel do Presidente para Master
+
+- [x] Corrigir verificação de permissão no painel-presidente.tsx para usuário Master
+- [x] Master deve ter acesso total a absolutamente tudo no app
+- [x] Verificar se o login Master está salvando a sessão com role correto
+- [x] Corrigir import useAuth em painel-presidente.tsx (hooks/use-auth → lib/auth-context)
+- [x] Corrigir import useAuth em ativos-fixos.tsx (hooks/use-auth → lib/auth-context)
+- [x] Corrigir import useAuth em notificacoes-context.tsx (hooks/use-auth → lib/auth-context)
