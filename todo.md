@@ -644,3 +644,15 @@
 - [x] Adicionar botão de Logoff dentro do app (Configurações → Conta → Sair)
 - [x] Botão de Logoff limpa sessão, usuário e escola selecionada
 - [x] Seção Conta mostra nome, role e CPF do usuário logado
+
+## Sprint 20.5 - Bugs persistentes: Landing bypass + Logout não funciona
+
+- [x] Bug: App continua pulando Landing e caindo direto dentro do app
+- [x] Bug: Botão "Sair do Aplicativo" nas Configurações não funciona
+- [x] Causa raiz: landing.tsx auto-redirecionava para /(tabs) ao encontrar sessão salva
+- [x] Causa raiz: NavigationGuard cacheava hasEscola uma vez e não reagia ao logout
+- [x] Causa raiz: router.replace('/landing') não funcionava bem dentro do grupo (tabs)
+- [x] Fix: Removido auto-redirect da landing.tsx - sempre mostra Landing
+- [x] Fix: NavigationGuard reescrito com dependências reativas (isLoggedIn, sessao)
+- [x] Fix: Logout usa dismissAll() + setTimeout + replace para navegar de volta
+- [x] Fix: Guard protege qualquer rota não-pública (não só (tabs))

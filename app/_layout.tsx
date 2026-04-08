@@ -13,7 +13,6 @@ import { EscolaProvider } from "@/lib/escola-context";
 import { ToastProvider } from "@/lib/toast-context";
 import { AuthProvider, useAuth } from "@/lib/auth-context";
 import { FinanceiroProvider } from "@/lib/financeiro-context";
-import { useEscola } from "@/lib/escola-context";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
   SafeAreaFrameContext,
@@ -35,64 +34,64 @@ export const unstable_settings = {
 
 /**
  * Navigation guard: redirects based on auth state and user status
- * - Not logged in → landing or login-cpf (public routes allowed)
- * - Logged in + pendente → status-cadastro
- * - Logged in + aprovado → (tabs)
+ * 
+ * Rules:
+ * 1. Not logged in + protected route → /landing
+ * 2. Logged in + no escola selected + protected route → /landing  
+ * 3. Logged in + pendente + in (tabs) → /status-cadastro
+ * 4. Public routes (landing, login, cadastro, etc.) → always allowed
  */
 function NavigationGuard({ children }: { children: React.ReactNode }) {
   const { isLoggedIn, isLoading, sessao, usuario } = useAuth();
-  const { escola } = useEscola();
   const segments = useSegments();
   const router = useRouter();
-  const [escolaChecked, setEscolaChecked] = useState(false);
-  const [hasEscolaSelecionada, setHasEscolaSelecionada] = useState(false);
+  const [ready, setReady] = useState(false);
+  const [hasEscola, setHasEscola] = useState(false);
 
-  // Check if escola is selected in AsyncStorage
+  // Check escola selection - re-runs whenever isLoggedIn or sessao changes
+  // This ensures that after logout (isLoggedIn becomes false, sessao becomes null),
+  // we re-read AsyncStorage and find escola was cleared
   useEffect(() => {
-    const checkEscola = async () => {
+    let cancelled = false;
+    const check = async () => {
       try {
-        const escolaSalva = await AsyncStorage.getItem("@samba_escola_selecionada");
-        setHasEscolaSelecionada(!!escolaSalva);
+        const val = await AsyncStorage.getItem("@samba_escola_selecionada");
+        if (!cancelled) {
+          setHasEscola(!!val);
+          setReady(true);
+        }
       } catch {
-        setHasEscolaSelecionada(false);
-      } finally {
-        setEscolaChecked(true);
+        if (!cancelled) {
+          setHasEscola(false);
+          setReady(true);
+        }
       }
     };
-    checkEscola();
-  }, []);
+    check();
+    return () => { cancelled = true; };
+  }, [isLoggedIn, sessao]);
 
   useEffect(() => {
-    if (isLoading || !escolaChecked) return;
+    if (isLoading || !ready) return;
 
-    const currentSegment = segments[0] as string | undefined;
-    const inAuthGroup = currentSegment === "(tabs)";
-    const inIndex = !currentSegment || currentSegment === "index";
-    const inLanding = currentSegment === "landing";
-    const inLogin = currentSegment === "login-cpf";
-    const inCadastro = currentSegment === "cadastro-integrante";
-    const inStatus = currentSegment === "status-cadastro";
-    const inContato = currentSegment === "contato-associacao";
-    const inOAuth = currentSegment === "oauth";
-    const inRegistroDiretor = currentSegment === "registro-diretor-carnaval";
+    const seg = segments[0] as string | undefined;
 
-    // Public routes that don't require auth
-    const isPublicRoute = inIndex || inLanding || inLogin || inCadastro || inStatus || inContato || inOAuth || inRegistroDiretor;
+    // Define public routes that don't require authentication
+    const PUBLIC_ROUTES = [
+      undefined, "", "index", "landing", "login-cpf", 
+      "cadastro-integrante", "status-cadastro", "contato-associacao",
+      "registro-diretor-carnaval", "oauth",
+    ];
+    const isPublic = PUBLIC_ROUTES.includes(seg as any);
 
-    // If user is in protected area but not logged in → go to landing
-    if (!isLoggedIn && inAuthGroup) {
+    // Rule 1 & 2: Protected route but not authenticated or no escola → landing
+    if (!isPublic && (!isLoggedIn || !hasEscola)) {
       router.replace("/landing" as any);
       return;
     }
 
-    // If user is in protected area but no escola selected → go to landing
-    if (inAuthGroup && !hasEscolaSelecionada) {
-      router.replace("/landing" as any);
-      return;
-    }
-
-    // If user is logged in and in protected area, check if pending
-    if (isLoggedIn && inAuthGroup) {
+    // Rule 3: Logged in but pending → status-cadastro
+    if (isLoggedIn && seg === "(tabs)") {
       const status = usuario?.statusUsuario || sessao?.statusUsuario;
       if (status === "pendente") {
         router.replace({
@@ -102,9 +101,7 @@ function NavigationGuard({ children }: { children: React.ReactNode }) {
         return;
       }
     }
-
-    // Don't force redirect from public routes - let user navigate freely
-  }, [isLoggedIn, isLoading, segments, usuario, sessao, escolaChecked, hasEscolaSelecionada]);
+  }, [isLoggedIn, isLoading, segments, usuario, sessao, ready, hasEscola]);
 
   return <>{children}</>;
 }

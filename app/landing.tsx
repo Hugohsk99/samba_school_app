@@ -67,35 +67,9 @@ export default function LandingScreen() {
   // tRPC query to check if escola has director
   const utils = trpc.useUtils();
 
-  // Verificar se já tem escola selecionada e sessão ativa
+  // Sempre mostrar a Landing - o usuário deve selecionar a escola explicitamente
   useEffect(() => {
-    const verificarSessao = async () => {
-      try {
-        const sessaoSalva = await AsyncStorage.getItem("@samba_sessao_v2");
-        const escolaSalva = await AsyncStorage.getItem("@samba_escola_selecionada");
-        if (sessaoSalva && escolaSalva) {
-          const sessao = JSON.parse(sessaoSalva);
-          if (sessao.statusUsuario === "aprovado") {
-            // Já está logado e aprovado → ir direto para home
-            router.replace("/(tabs)" as any);
-            return;
-          }
-          if (sessao.statusUsuario === "pendente") {
-            // Logado mas pendente → ir para status
-            router.replace({
-              pathname: "/status-cadastro" as any,
-              params: { cpf: sessao.cpf || "" },
-            });
-            return;
-          }
-        }
-      } catch (error) {
-        console.error("Erro ao verificar sessão:", error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    verificarSessao();
+    setIsLoading(false);
   }, []);
 
   const onRefresh = useCallback(() => {

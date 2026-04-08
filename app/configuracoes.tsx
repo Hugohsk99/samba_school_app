@@ -601,8 +601,14 @@ export default function ConfiguracoesScreen() {
                         onPress: async () => {
                           try {
                             await logout();
-                            showSuccess("Até logo!", "Você foi desconectado com sucesso.");
-                            router.replace("/landing" as any);
+                            // Use dismissAll to clear the navigation stack, then navigate to landing
+                            if (router.canDismiss()) {
+                              router.dismissAll();
+                            }
+                            // Small delay to ensure state is cleared before navigation
+                            setTimeout(() => {
+                              router.replace("/landing" as any);
+                            }, 100);
                           } catch (error) {
                             showError("Erro", "Não foi possível sair. Tente novamente.");
                           }
