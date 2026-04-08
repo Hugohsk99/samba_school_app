@@ -562,3 +562,14 @@
 - [x] Testar fluxo completo: landing → login → cadastro → aprovação → acesso
 - [x] Testar hierarquia de permissões
 - [x] Testar gestão de alas com limite
+
+
+## Sprint 19 - Revisão Completa e Correção de Fluxo
+- [x] Landing deve ser a primeira tela do app (não a Home)
+- [x] Fluxo: Landing → Selecionar Escola → Login CPF → Cadastro/Home
+- [x] Login CPF+Senha deve funcionar integrado ao banco de dados
+- [x] Primeiro acesso: cadastrar Diretor de Carnaval como primeiro usuário da escola
+- [x] Fluxo de aprovação hierárquico funcional no banco
+- [x] Verificar que todas as telas estão acessíveis e navegáveis
+- [x] Garantir que a hierarquia de 7 perfis está funcional
+- [x] Testar fluxo completo end-to-end

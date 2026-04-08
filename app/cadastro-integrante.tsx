@@ -22,6 +22,7 @@ import { ScreenContainer } from "@/components/screen-container";
 import { useColors } from "@/hooks/use-colors";
 import { useData } from "@/lib/data-context";
 import { useEscola } from "@/lib/escola-context";
+import { useAuth } from "@/lib/auth-context";
 import { useToast } from "@/lib/toast-context";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as ImagePicker from "expo-image-picker";
@@ -80,6 +81,7 @@ export default function CadastroIntegranteScreen() {
   const colors = useColors();
   const { addIntegrante, blocos } = useData();
   const { escola } = useEscola();
+  const { registrarCpf } = useAuth();
   const { showSuccess, showError, showWarning } = useToast();
 
   const corPrimaria = escola?.corPrimaria || colors.primary;
@@ -213,7 +215,7 @@ export default function CadastroIntegranteScreen() {
     }
   };
 
-  // Cadastrar
+  // Cadastrar via banco de dados
   const handleCadastrar = async () => {
     if (!validarStep()) return;
 
@@ -222,27 +224,41 @@ export default function CadastroIntegranteScreen() {
     try {
       const cpfLimpo = form.cpf.replace(/\D/g, "");
 
-      // Salvar cadastro como pendente
+      // Registrar no banco de dados via tRPC
+      const result = await registrarCpf({
+        cpf: cpfLimpo,
+        senha: form.senha,
+        nome: form.nome,
+        email: form.email || undefined,
+        telefone: form.telefone.replace(/\D/g, "") || undefined,
+        escolaId: 1, // Estácio S.A. (primeira escola)
+        comprovantePix: form.comprovantePix || undefined,
+      });
+
+      if (!result.success) {
+        if (result.error === "cpf_ja_cadastrado") {
+          showError("CPF já cadastrado", "Este CPF já está registrado. Tente fazer login.");
+          router.replace("/login-cpf" as any);
+          return;
+        }
+        showError("Erro", result.error || "Não foi possível completar o cadastro.");
+        return;
+      }
+
+      // Salvar backup local também
       const cadastroPendente = {
         ...form,
         cpf: cpfLimpo,
         status: "pendente",
         dataCadastro: new Date().toISOString(),
-        escolaId: escola?.id || "estacio-sa",
+        escolaId: "estacio-sa",
       };
-
       await AsyncStorage.setItem(
         `${STATUS_CADASTRO_KEY}_${cpfLimpo}`,
         JSON.stringify(cadastroPendente)
       );
 
-      // Salvar senha
-      const senhasSalvas = await AsyncStorage.getItem(SENHAS_SALVAS_KEY);
-      const senhas = senhasSalvas ? JSON.parse(senhasSalvas) : {};
-      senhas[cpfLimpo] = form.senha;
-      await AsyncStorage.setItem(SENHAS_SALVAS_KEY, JSON.stringify(senhas));
-
-      // Adicionar como integrante com status pendente
+      // Adicionar localmente também para compatibilidade
       const novoIntegrante = {
         nome: form.nome,
         telefone: form.telefone.replace(/\D/g, ""),
@@ -258,11 +274,10 @@ export default function CadastroIntegranteScreen() {
         categoria: "desfilante" as const,
         tipoDesfilante: "ala_comunidade" as const,
         blocosIds: [] as string[],
-        ativo: false, // Pendente de aprovação
-        observacoes: `Cadastro pendente de aprovação. Comprovante PIX enviado. ${form.observacoes}`,
+        ativo: false,
+        observacoes: `Cadastro pendente de aprovação. ${form.observacoes}`,
         foto: form.comprovantePix || undefined,
       };
-
       addIntegrante(novoIntegrante);
 
       if (Platform.OS !== "web") {

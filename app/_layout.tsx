@@ -1,6 +1,6 @@
 import "@/global.css";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { Stack } from "expo-router";
+import { Stack, useRouter, useSegments } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
@@ -11,7 +11,7 @@ import { ThemeProvider } from "@/lib/theme-provider";
 import { DataProvider } from "@/lib/data-context";
 import { EscolaProvider } from "@/lib/escola-context";
 import { ToastProvider } from "@/lib/toast-context";
-import { AuthProvider } from "@/lib/auth-context";
+import { AuthProvider, useAuth } from "@/lib/auth-context";
 import { FinanceiroProvider } from "@/lib/financeiro-context";
 import {
   SafeAreaFrameContext,
@@ -28,8 +28,89 @@ const DEFAULT_WEB_INSETS: EdgeInsets = { top: 0, right: 0, bottom: 0, left: 0 };
 const DEFAULT_WEB_FRAME: Rect = { x: 0, y: 0, width: 0, height: 0 };
 
 export const unstable_settings = {
-  anchor: "(tabs)",
+  initialRouteName: "landing",
 };
+
+/**
+ * Navigation guard: redirects based on auth state and user status
+ * - Not logged in → landing or login-cpf (public routes allowed)
+ * - Logged in + pendente → status-cadastro
+ * - Logged in + aprovado → (tabs)
+ */
+function NavigationGuard({ children }: { children: React.ReactNode }) {
+  const { isLoggedIn, isLoading, sessao, usuario } = useAuth();
+  const segments = useSegments();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (isLoading) return;
+
+    const inAuthGroup = segments[0] === "(tabs)";
+    const inLanding = segments[0] === "landing";
+    const inLogin = segments[0] === "login-cpf";
+    const inCadastro = segments[0] === "cadastro-integrante";
+    const inStatus = segments[0] === "status-cadastro";
+    const inContato = segments[0] === "contato-associacao";
+    const inOAuth = segments[0] === "oauth";
+    const inRegistroDiretor = segments[0] === "registro-diretor-carnaval";
+
+    // Public routes that don't require auth
+    const isPublicRoute = inLanding || inLogin || inCadastro || inStatus || inContato || inOAuth || inRegistroDiretor;
+
+    if (!isLoggedIn && inAuthGroup) {
+      // Not logged in but trying to access protected route → go to landing
+      router.replace("/landing" as any);
+      return;
+    }
+
+    if (isLoggedIn && inAuthGroup) {
+      // Check if user is pending approval
+      const status = usuario?.statusUsuario || sessao?.statusUsuario;
+      if (status === "pendente") {
+        router.replace({
+          pathname: "/status-cadastro" as any,
+          params: { cpf: usuario?.cpf || sessao?.cpf || "" },
+        });
+        return;
+      }
+    }
+
+    // Don't force redirect from public routes - let user navigate freely
+  }, [isLoggedIn, isLoading, segments, usuario, sessao]);
+
+  return <>{children}</>;
+}
+
+/**
+ * Inner layout that uses AuthProvider inside tRPC context
+ */
+function InnerLayout() {
+  return (
+    <AuthProvider>
+      <NavigationGuard>
+        <Stack screenOptions={{ headerShown: false }}>
+          {/* Landing is the initial route - escola selection */}
+          <Stack.Screen name="landing" />
+          {/* Login CPF + Senha */}
+          <Stack.Screen name="login-cpf" />
+          {/* Self-registration with PIX */}
+          <Stack.Screen name="cadastro-integrante" />
+          {/* Registration status */}
+          <Stack.Screen name="status-cadastro" />
+          {/* Contact/association */}
+          <Stack.Screen name="contato-associacao" />
+          {/* First director registration */}
+          <Stack.Screen name="registro-diretor-carnaval" />
+          {/* Main app tabs (protected) */}
+          <Stack.Screen name="(tabs)" />
+          {/* OAuth callback */}
+          <Stack.Screen name="oauth/callback" />
+        </Stack>
+      </NavigationGuard>
+      <StatusBar style="auto" />
+    </AuthProvider>
+  );
+}
 
 export default function RootLayout() {
   const initialInsets = initialWindowMetrics?.insets ?? DEFAULT_WEB_INSETS;
@@ -60,9 +141,7 @@ export default function RootLayout() {
       new QueryClient({
         defaultOptions: {
           queries: {
-            // Disable automatic refetching on window focus for mobile
             refetchOnWindowFocus: false,
-            // Retry failed requests once
             retry: 1,
           },
         },
@@ -70,7 +149,7 @@ export default function RootLayout() {
   );
   const [trpcClient] = useState(() => createTRPCClient());
 
-  // Ensure minimum 8px padding for top and bottom on mobile
+  // Ensure minimum padding for top and bottom on mobile
   const providerInitialMetrics = useMemo(() => {
     const metrics = initialWindowMetrics ?? { insets: initialInsets, frame: initialFrame };
     return {
@@ -87,14 +166,7 @@ export default function RootLayout() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <trpc.Provider client={trpcClient} queryClient={queryClient}>
         <QueryClientProvider client={queryClient}>
-          {/* Default to hiding native headers so raw route segments don't appear (e.g. "(tabs)", "products/[id]"). */}
-          {/* If a screen needs the native header, explicitly enable it and set a human title via Stack.Screen options. */}
-          {/* in order for ios apps tab switching to work properly, use presentation: "fullScreenModal" for login page, whenever you decide to use presentation: "modal*/}
-          <Stack screenOptions={{ headerShown: false }}>
-            <Stack.Screen name="(tabs)" />
-            <Stack.Screen name="oauth/callback" />
-          </Stack>
-          <StatusBar style="auto" />
+          <InnerLayout />
         </QueryClientProvider>
       </trpc.Provider>
     </GestureHandlerRootView>
@@ -108,17 +180,15 @@ export default function RootLayout() {
         <EscolaProvider>
           <DataProvider>
             <FinanceiroProvider>
-              <AuthProvider>
-                <ToastProvider>
-                  <SafeAreaProvider initialMetrics={providerInitialMetrics}>
+              <ToastProvider>
+                <SafeAreaProvider initialMetrics={providerInitialMetrics}>
                   <SafeAreaFrameContext.Provider value={frame}>
                     <SafeAreaInsetsContext.Provider value={insets}>
                       {content}
                     </SafeAreaInsetsContext.Provider>
                   </SafeAreaFrameContext.Provider>
                 </SafeAreaProvider>
-                </ToastProvider>
-              </AuthProvider>
+              </ToastProvider>
             </FinanceiroProvider>
           </DataProvider>
         </EscolaProvider>
@@ -131,11 +201,9 @@ export default function RootLayout() {
       <EscolaProvider>
         <DataProvider>
           <FinanceiroProvider>
-            <AuthProvider>
-              <ToastProvider>
-                <SafeAreaProvider initialMetrics={providerInitialMetrics}>{content}</SafeAreaProvider>
-              </ToastProvider>
-            </AuthProvider>
+            <ToastProvider>
+              <SafeAreaProvider initialMetrics={providerInitialMetrics}>{content}</SafeAreaProvider>
+            </ToastProvider>
           </FinanceiroProvider>
         </DataProvider>
       </EscolaProvider>

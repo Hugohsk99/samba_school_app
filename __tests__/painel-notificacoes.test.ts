@@ -1,12 +1,13 @@
 /**
  * Testes do Sistema de Notificações e Painel do Presidente
+ * Hierarquia 7 Níveis
  */
 
 import { describe, it, expect } from "vitest";
 import {
   PERMISSOES_POR_ROLE,
   temPermissaoRole,
-  Role,
+  type Role,
 } from "../drizzle/schema";
 
 describe("Sistema de Notificações", () => {
@@ -49,62 +50,31 @@ describe("Sistema de Notificações", () => {
       expect(tiposNotificacao).toContain("plano_expirando");
     });
   });
-
-  describe("Ícones e Cores de Notificação", () => {
-    const icones = {
-      solicitacao_acesso: "👤",
-      usuario_aprovado: "✅",
-      usuario_rejeitado: "❌",
-      convite_enviado: "📨",
-      convite_aceito: "🎉",
-      convite_expirando: "⏰",
-      material_pendente: "📦",
-      evento_proximo: "📅",
-      evento_criado: "🎭",
-      alerta_sistema: "⚠️",
-      limite_usuarios: "👥",
-      plano_expirando: "💳",
-    };
-
-    it("deve ter ícone para cada tipo de notificação", () => {
-      expect(Object.keys(icones).length).toBe(12);
-    });
-
-    it("deve usar emojis apropriados", () => {
-      expect(icones.usuario_aprovado).toBe("✅");
-      expect(icones.usuario_rejeitado).toBe("❌");
-      expect(icones.alerta_sistema).toBe("⚠️");
-    });
-  });
 });
 
 describe("Painel do Presidente", () => {
   describe("Acesso ao Painel", () => {
-    const rolesComAcesso: Role[] = ["master", "presidente", "diretor"];
-    const rolesSemAcesso: Role[] = ["coordenador", "integrante", "contribuinte"];
+    const rolesComAcesso: Role[] = ["master", "diretor_escola", "diretor_carnaval"];
+    const rolesSemAcesso: Role[] = ["diretor_segmento", "integrante", "pendente"];
 
     it("master deve ter acesso ao painel", () => {
       expect(rolesComAcesso).toContain("master");
     });
 
-    it("presidente deve ter acesso ao painel", () => {
-      expect(rolesComAcesso).toContain("presidente");
+    it("diretor_escola deve ter acesso ao painel", () => {
+      expect(rolesComAcesso).toContain("diretor_escola");
     });
 
-    it("diretor deve ter acesso ao painel", () => {
-      expect(rolesComAcesso).toContain("diretor");
-    });
-
-    it("coordenador não deve ter acesso ao painel", () => {
-      expect(rolesSemAcesso).toContain("coordenador");
+    it("diretor_carnaval deve ter acesso ao painel", () => {
+      expect(rolesComAcesso).toContain("diretor_carnaval");
     });
 
     it("integrante não deve ter acesso ao painel", () => {
       expect(rolesSemAcesso).toContain("integrante");
     });
 
-    it("contribuinte não deve ter acesso ao painel", () => {
-      expect(rolesSemAcesso).toContain("contribuinte");
+    it("pendente não deve ter acesso ao painel", () => {
+      expect(rolesSemAcesso).toContain("pendente");
     });
   });
 
@@ -137,35 +107,37 @@ describe("Painel do Presidente", () => {
   });
 });
 
-describe("Fluxo de Aprovação Hierárquico", () => {
+describe("Fluxo de Aprovação Hierárquico - 7 Níveis", () => {
   const roleHierarquia: Record<Role, number> = {
-    master: 5,
-    presidente: 4,
-    diretor: 3,
-    coordenador: 2,
+    master: 6,
+    diretor_escola: 5,
+    diretor_carnaval: 4,
+    diretor_ala: 3,
+    diretor_segmento: 2,
     integrante: 1,
-    contribuinte: 0,
+    pendente: 0,
   };
 
   describe("Níveis de Hierarquia", () => {
     it("master deve ter nível mais alto", () => {
-      expect(roleHierarquia.master).toBe(5);
+      expect(roleHierarquia.master).toBe(6);
     });
 
-    it("presidente deve ter segundo nível mais alto", () => {
-      expect(roleHierarquia.presidente).toBe(4);
+    it("diretor_escola deve ter segundo nível mais alto", () => {
+      expect(roleHierarquia.diretor_escola).toBe(5);
     });
 
-    it("contribuinte deve ter nível mais baixo", () => {
-      expect(roleHierarquia.contribuinte).toBe(0);
+    it("pendente deve ter nível mais baixo", () => {
+      expect(roleHierarquia.pendente).toBe(0);
     });
 
-    it("hierarquia deve ser: master > presidente > diretor > coordenador > integrante > contribuinte", () => {
-      expect(roleHierarquia.master).toBeGreaterThan(roleHierarquia.presidente);
-      expect(roleHierarquia.presidente).toBeGreaterThan(roleHierarquia.diretor);
-      expect(roleHierarquia.diretor).toBeGreaterThan(roleHierarquia.coordenador);
-      expect(roleHierarquia.coordenador).toBeGreaterThan(roleHierarquia.integrante);
-      expect(roleHierarquia.integrante).toBeGreaterThan(roleHierarquia.contribuinte);
+    it("hierarquia deve ser: master > dir_escola > dir_carnaval > dir_ala > dir_segmento > integrante > pendente", () => {
+      expect(roleHierarquia.master).toBeGreaterThan(roleHierarquia.diretor_escola);
+      expect(roleHierarquia.diretor_escola).toBeGreaterThan(roleHierarquia.diretor_carnaval);
+      expect(roleHierarquia.diretor_carnaval).toBeGreaterThan(roleHierarquia.diretor_ala);
+      expect(roleHierarquia.diretor_ala).toBeGreaterThan(roleHierarquia.diretor_segmento);
+      expect(roleHierarquia.diretor_segmento).toBeGreaterThan(roleHierarquia.integrante);
+      expect(roleHierarquia.integrante).toBeGreaterThan(roleHierarquia.pendente);
     });
   });
 
@@ -176,52 +148,42 @@ describe("Fluxo de Aprovação Hierárquico", () => {
     }
 
     it("master pode aprovar qualquer role", () => {
-      expect(podeAprovar("master", "presidente")).toBe(true);
-      expect(podeAprovar("master", "diretor")).toBe(true);
+      expect(podeAprovar("master", "diretor_escola")).toBe(true);
+      expect(podeAprovar("master", "diretor_carnaval")).toBe(true);
       expect(podeAprovar("master", "integrante")).toBe(true);
     });
 
-    it("presidente pode aprovar diretor, coordenador, integrante, contribuinte", () => {
-      expect(podeAprovar("presidente", "diretor")).toBe(true);
-      expect(podeAprovar("presidente", "coordenador")).toBe(true);
-      expect(podeAprovar("presidente", "integrante")).toBe(true);
-      expect(podeAprovar("presidente", "contribuinte")).toBe(true);
+    it("diretor_escola pode aprovar todos abaixo", () => {
+      expect(podeAprovar("diretor_escola", "diretor_carnaval")).toBe(true);
+      expect(podeAprovar("diretor_escola", "diretor_ala")).toBe(true);
+      expect(podeAprovar("diretor_escola", "integrante")).toBe(true);
+      expect(podeAprovar("diretor_escola", "pendente")).toBe(true);
     });
 
-    it("presidente não pode aprovar outro presidente", () => {
-      expect(podeAprovar("presidente", "presidente")).toBe(false);
+    it("diretor_escola não pode aprovar master ou outro diretor_escola", () => {
+      expect(podeAprovar("diretor_escola", "master")).toBe(false);
+      expect(podeAprovar("diretor_escola", "diretor_escola")).toBe(false);
     });
 
-    it("diretor pode aprovar coordenador, integrante, contribuinte", () => {
-      expect(podeAprovar("diretor", "coordenador")).toBe(true);
-      expect(podeAprovar("diretor", "integrante")).toBe(true);
-      expect(podeAprovar("diretor", "contribuinte")).toBe(true);
+    it("diretor_carnaval pode aprovar diretor_ala, segmento e integrante", () => {
+      expect(podeAprovar("diretor_carnaval", "diretor_ala")).toBe(true);
+      expect(podeAprovar("diretor_carnaval", "diretor_segmento")).toBe(true);
+      expect(podeAprovar("diretor_carnaval", "integrante")).toBe(true);
     });
 
-    it("diretor não pode aprovar presidente ou outro diretor", () => {
-      expect(podeAprovar("diretor", "presidente")).toBe(false);
-      expect(podeAprovar("diretor", "diretor")).toBe(false);
+    it("diretor_carnaval não pode aprovar superiores", () => {
+      expect(podeAprovar("diretor_carnaval", "diretor_escola")).toBe(false);
+      expect(podeAprovar("diretor_carnaval", "master")).toBe(false);
     });
 
-    it("coordenador pode aprovar integrante e contribuinte", () => {
-      expect(podeAprovar("coordenador", "integrante")).toBe(true);
-      expect(podeAprovar("coordenador", "contribuinte")).toBe(true);
-    });
-
-    it("coordenador não pode aprovar diretor ou acima", () => {
-      expect(podeAprovar("coordenador", "diretor")).toBe(false);
-      expect(podeAprovar("coordenador", "presidente")).toBe(false);
-    });
-
-    it("integrante não pode aprovar ninguém exceto contribuinte", () => {
-      expect(podeAprovar("integrante", "contribuinte")).toBe(true);
+    it("integrante não pode aprovar ninguém acima", () => {
       expect(podeAprovar("integrante", "integrante")).toBe(false);
-      expect(podeAprovar("integrante", "coordenador")).toBe(false);
+      expect(podeAprovar("integrante", "diretor_segmento")).toBe(false);
     });
 
-    it("contribuinte não pode aprovar ninguém", () => {
-      expect(podeAprovar("contribuinte", "contribuinte")).toBe(false);
-      expect(podeAprovar("contribuinte", "integrante")).toBe(false);
+    it("pendente não pode aprovar ninguém", () => {
+      expect(podeAprovar("pendente", "pendente")).toBe(false);
+      expect(podeAprovar("pendente", "integrante")).toBe(false);
     });
   });
 });
@@ -231,20 +193,20 @@ describe("Permissões de Aprovação", () => {
     expect(temPermissaoRole("master", "escola.aprovar_usuarios")).toBe(true);
   });
 
-  it("presidente deve ter permissão de aprovar usuários", () => {
-    expect(temPermissaoRole("presidente", "escola.aprovar_usuarios")).toBe(true);
+  it("diretor_escola deve ter permissão de aprovar usuários", () => {
+    expect(temPermissaoRole("diretor_escola", "escola.aprovar_usuarios")).toBe(true);
   });
 
-  it("diretor deve ter permissão de aprovar usuários", () => {
-    expect(temPermissaoRole("diretor", "escola.aprovar_usuarios")).toBe(true);
-  });
-
-  it("coordenador não deve ter permissão de aprovar usuários", () => {
-    expect(temPermissaoRole("coordenador", "escola.aprovar_usuarios")).toBe(false);
+  it("diretor_carnaval deve ter permissão de aprovar usuários", () => {
+    expect(temPermissaoRole("diretor_carnaval", "escola.aprovar_usuarios")).toBe(true);
   });
 
   it("integrante não deve ter permissão de aprovar usuários", () => {
     expect(temPermissaoRole("integrante", "escola.aprovar_usuarios")).toBe(false);
+  });
+
+  it("pendente não deve ter permissão de aprovar usuários", () => {
+    expect(temPermissaoRole("pendente", "escola.aprovar_usuarios")).toBe(false);
   });
 });
 

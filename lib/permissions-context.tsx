@@ -10,10 +10,18 @@ import { trpc } from "./trpc";
 import { useAuth as useManusAuth } from "@/hooks/use-auth";
 
 // ============================================
-// TIPOS
+// TIPOS - 7 Níveis de Hierarquia
 // ============================================
 
-export type Role = "master" | "presidente" | "diretor" | "coordenador" | "integrante" | "contribuinte";
+export type Role = 
+  | "master"            // 100 Anos Gestão de Samba - acesso global
+  | "diretor_escola"    // Diretor da escola - máximo na escola
+  | "diretor_carnaval"  // Diretor de carnaval - operacional avançado
+  | "diretor_ala"       // Diretor de ala - restrito à ala
+  | "diretor_segmento"  // Diretor de segmento - restrito ao segmento
+  | "integrante"        // Integrante aprovado - leitura apenas
+  | "pendente";         // Usuário pendente - aguardando aprovação
+
 export type StatusUsuario = "pendente" | "aprovado" | "rejeitado" | "suspenso";
 export type Plano = "gratuito" | "basico" | "premium" | "enterprise";
 
@@ -40,6 +48,27 @@ export interface UsuarioCompleto {
   integranteId: string | null;
 }
 
+// Labels para exibição
+export const ROLE_LABELS: Record<Role, string> = {
+  master: "Master",
+  diretor_escola: "Diretor de Escola",
+  diretor_carnaval: "Diretor de Carnaval",
+  diretor_ala: "Diretor de Ala",
+  diretor_segmento: "Diretor de Segmento",
+  integrante: "Integrante",
+  pendente: "Pendente",
+};
+
+export const ROLE_ICONS: Record<Role, string> = {
+  master: "⭐",
+  diretor_escola: "👑",
+  diretor_carnaval: "🎭",
+  diretor_ala: "🎯",
+  diretor_segmento: "📋",
+  integrante: "🎶",
+  pendente: "⏳",
+};
+
 // Lista de permissões do sistema
 export const PERMISSOES_SISTEMA = [
   // Escola
@@ -54,7 +83,7 @@ export const PERMISSOES_SISTEMA = [
   "usuarios.excluir",
   "usuarios.alterar_role",
   
-  // Blocos
+  // Blocos/Segmentos
   "blocos.ver_todos",
   "blocos.cadastrar",
   "blocos.editar",
@@ -93,11 +122,11 @@ export const PERMISSOES_SISTEMA = [
 
 export type PermissaoSistema = typeof PERMISSOES_SISTEMA[number];
 
-// Mapeamento de permissões por role (espelho do backend)
+// Mapeamento de permissões por role
 export const PERMISSOES_POR_ROLE: Record<Role, PermissaoSistema[]> = {
   master: [...PERMISSOES_SISTEMA],
   
-  presidente: [
+  diretor_escola: [
     "escola.editar",
     "escola.gerenciar_plano",
     "escola.aprovar_usuarios",
@@ -132,13 +161,15 @@ export const PERMISSOES_POR_ROLE: Record<Role, PermissaoSistema[]> = {
     "configuracoes.gestao_dados",
   ],
   
-  diretor: [
+  diretor_carnaval: [
     "escola.aprovar_usuarios",
     "usuarios.ver_todos",
     "usuarios.cadastrar",
     "usuarios.editar",
     "blocos.ver_todos",
+    "blocos.cadastrar",
     "blocos.editar",
+    "blocos.excluir",
     "eventos.ver_todos",
     "eventos.cadastrar",
     "eventos.editar",
@@ -149,15 +180,18 @@ export const PERMISSOES_POR_ROLE: Record<Role, PermissaoSistema[]> = {
     "almoxarifado.editar",
     "almoxarifado.excluir",
     "almoxarifado.entregar_devolver",
+    "financeiro.ver",
     "relatorios.presenca",
     "relatorios.geral",
   ],
   
-  coordenador: [
+  diretor_ala: [
+    "escola.aprovar_usuarios",
     "usuarios.ver_todos",
     "usuarios.cadastrar",
     "usuarios.editar",
     "blocos.ver_todos",
+    "blocos.editar",
     "eventos.ver_todos",
     "eventos.cadastrar",
     "eventos.editar",
@@ -169,15 +203,38 @@ export const PERMISSOES_POR_ROLE: Record<Role, PermissaoSistema[]> = {
     "relatorios.presenca",
   ],
   
+  diretor_segmento: [
+    "usuarios.ver_todos",
+    "blocos.ver_todos",
+    "eventos.ver_todos",
+    "eventos.checkin",
+    "almoxarifado.ver",
+    "almoxarifado.entregar_devolver",
+    "relatorios.presenca",
+  ],
+  
   integrante: [
     "blocos.ver_todos",
     "eventos.ver_todos",
   ],
   
-  contribuinte: [
-    "eventos.ver_todos",
-  ],
+  pendente: [],
 };
+
+// Hierarquia de roles (quem pode aprovar quem)
+export const HIERARQUIA_ROLES: Record<Role, number> = {
+  master: 0,
+  diretor_escola: 1,
+  diretor_carnaval: 2,
+  diretor_ala: 3,
+  diretor_segmento: 4,
+  integrante: 5,
+  pendente: 6,
+};
+
+export function podeAprovarRole(meuRole: Role, targetRole: Role): boolean {
+  return HIERARQUIA_ROLES[meuRole] < HIERARQUIA_ROLES[targetRole];
+}
 
 // ============================================
 // CONTEXTO
@@ -234,14 +291,19 @@ export function PermissionsProvider({ children }: { children: React.ReactNode })
   // Atualizar estado quando dados mudarem
   useEffect(() => {
     if (perfilQuery.data) {
-      setUser(perfilQuery.data.user as UsuarioCompleto);
-      setEscola(perfilQuery.data.escola as Escola | null);
-      setPermissoesCustomizadas(
-        perfilQuery.data.permissoesCustomizadas.map((p: { permissao: string; valor: boolean }) => ({ 
-          permissao: p.permissao, 
-          valor: p.valor 
-        }))
-      );
+      const data = perfilQuery.data as any;
+      setUser({
+        id: data.id,
+        openId: data.openId,
+        email: data.email,
+        name: data.name,
+        fotoUrl: data.fotoUrl,
+        role: data.role as Role,
+        statusUsuario: data.statusUsuario as StatusUsuario,
+        escolaId: data.escolaId,
+        integranteId: data.integranteId ?? null,
+      });
+      setEscola(data.escola as Escola | null);
       setIsLoading(false);
     } else if (perfilQuery.error) {
       setUser(null);
@@ -257,23 +319,21 @@ export function PermissionsProvider({ children }: { children: React.ReactNode })
   }, [perfilQuery]);
 
   // Role atual
-  const role: Role = user?.role ?? "contribuinte";
+  const role: Role = user?.role ?? "pendente";
 
   // Permissões do role
-  const permissoesRole = useMemo(() => PERMISSOES_POR_ROLE[role], [role]);
+  const permissoesRole = useMemo(() => PERMISSOES_POR_ROLE[role] ?? [], [role]);
 
   // Todas as permissões (role + customizadas)
   const permissoes = useMemo(() => {
     const todas = new Set<PermissaoSistema>(permissoesRole);
     
-    // Adiciona permissões customizadas positivas
     permissoesCustomizadas.forEach(p => {
       if (p.valor && PERMISSOES_SISTEMA.includes(p.permissao as PermissaoSistema)) {
         todas.add(p.permissao as PermissaoSistema);
       }
     });
     
-    // Remove permissões customizadas negativas
     permissoesCustomizadas.forEach(p => {
       if (!p.valor) {
         todas.delete(p.permissao as PermissaoSistema);
@@ -289,12 +349,10 @@ export function PermissionsProvider({ children }: { children: React.ReactNode })
     return permissoes.includes(permissao);
   }, [role, permissoes]);
 
-  // Verificar se tem alguma das permissões
   const temAlgumaPermissao = useCallback((lista: PermissaoSistema[]): boolean => {
     return lista.some(p => temPermissao(p));
   }, [temPermissao]);
 
-  // Verificar se tem todas as permissões
   const temTodasPermissoes = useCallback((lista: PermissaoSistema[]): boolean => {
     return lista.every(p => temPermissao(p));
   }, [temPermissao]);
@@ -305,8 +363,8 @@ export function PermissionsProvider({ children }: { children: React.ReactNode })
   const isPendente = user?.statusUsuario === "pendente";
 
   // Helpers de role
-  const isGestor = role === "master" || role === "presidente" || role === "diretor";
-  const isAdmin = role === "master" || role === "presidente";
+  const isGestor = role === "master" || role === "diretor_escola" || role === "diretor_carnaval" || role === "diretor_ala";
+  const isAdmin = role === "master" || role === "diretor_escola";
   
   // Helpers de acesso
   const podeGerenciarUsuarios = temAlgumaPermissao(["usuarios.ver_todos", "usuarios.cadastrar", "usuarios.editar"]);
@@ -354,13 +412,11 @@ export function usePermissions() {
   return context;
 }
 
-// Hook para verificar permissão específica
 export function useTemPermissao(permissao: PermissaoSistema) {
   const { temPermissao, isLoading } = usePermissions();
   return { permitido: temPermissao(permissao), isLoading };
 }
 
-// Hook para proteger componente
 export function useProtectedComponent(permissao: PermissaoSistema) {
   const { temPermissao, isLoading, isAuthenticated, isAprovado } = usePermissions();
   
@@ -402,12 +458,10 @@ export function Protected({
   
   if (isLoading) return null;
   
-  // Verifica permissão única
   if (permissao && !temPermissao(permissao)) {
     return <>{fallback}</>;
   }
   
-  // Verifica lista de permissões
   if (permissoes) {
     const temAcesso = modo === "todas" 
       ? temTodasPermissoes(permissoes)
@@ -421,7 +475,6 @@ export function Protected({
   return <>{children}</>;
 }
 
-// Componente para mostrar apenas para gestores
 export function GestorOnly({ children, fallback = null }: { children: React.ReactNode; fallback?: React.ReactNode }) {
   const { isGestor, isLoading } = usePermissions();
   
@@ -431,7 +484,6 @@ export function GestorOnly({ children, fallback = null }: { children: React.Reac
   return <>{children}</>;
 }
 
-// Componente para mostrar apenas para admins
 export function AdminOnly({ children, fallback = null }: { children: React.ReactNode; fallback?: React.ReactNode }) {
   const { isAdmin, isLoading } = usePermissions();
   

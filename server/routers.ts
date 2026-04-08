@@ -5,7 +5,7 @@ import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, protectedProcedure, router } from "./_core/trpc";
 import { TRPCError } from "@trpc/server";
 import * as db from "./db";
-import { Role, PermissaoSistema, PERMISSOES_POR_ROLE } from "../drizzle/schema";
+import { Role, PermissaoSistema, PERMISSOES_POR_ROLE, HIERARQUIA_ROLES, podeAprovarRole } from "../drizzle/schema";
 import crypto from "crypto";
 
 // Gerar código único para convites
@@ -22,6 +22,15 @@ function gerarSlug(nome: string): string {
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-|-$/g, "")
     .substring(0, 100);
+}
+
+// Roles válidos para aprovação e convites
+const ROLES_APROVACAO = ["diretor_carnaval", "diretor_ala", "diretor_segmento", "integrante"] as const;
+const ROLES_ALTERACAO = ["diretor_escola", "diretor_carnaval", "diretor_ala", "diretor_segmento", "integrante", "pendente"] as const;
+
+// Roles gestores (podem acessar dashboard, alertas, etc.)
+function isGestor(role: string): boolean {
+  return ["master", "diretor_escola", "diretor_carnaval", "diretor_ala"].includes(role);
 }
 
 export const appRouter = router({
@@ -48,24 +57,168 @@ export const appRouter = router({
         escola = await db.getEscolaById(user.escolaId);
       }
 
-      const permissoes = PERMISSOES_POR_ROLE[user.role];
-      const permissoesCustomizadas = await db.getPermissoesCustomizadas(user.id);
-      const blocos = await db.getBlocosDoUsuario(user.id);
-
       return {
-        user,
+        ...user,
         escola,
-        permissoes,
-        permissoesCustomizadas,
-        blocos,
       };
     }),
 
-    // Verificar se tem permissão específica
-    temPermissao: protectedProcedure
-      .input(z.object({ permissao: z.string() }))
-      .query(async ({ ctx, input }) => {
-        return db.temPermissao(ctx.user.id, input.permissao as PermissaoSistema);
+    // Login por CPF + Senha
+    loginCpf: publicProcedure
+      .input(z.object({
+        cpf: z.string().min(11).max(14),
+        senha: z.string().min(4),
+      }))
+      .mutation(async ({ input }) => {
+        const result = await db.loginCpf(input.cpf, input.senha);
+        
+        if (!result.success) {
+          return {
+            success: false as const,
+            error: result.error,
+            user: null,
+          };
+        }
+
+        const user = result.user;
+        let escola = null;
+        if (user.escolaId) {
+          escola = await db.getEscolaById(user.escolaId);
+        }
+
+        return {
+          success: true as const,
+          error: null,
+          user: {
+            id: user.id,
+            cpf: user.cpf,
+            nome: user.name,
+            email: user.email,
+            telefone: user.telefone,
+            role: user.role,
+            statusUsuario: user.statusUsuario,
+            escolaId: user.escolaId,
+            alaId: user.alaId,
+            segmentoId: user.segmentoId,
+            fotoUrl: user.fotoUrl,
+            escola,
+          },
+        };
+      }),
+
+    // Registrar novo usuário por CPF
+    registrarCpf: publicProcedure
+      .input(z.object({
+        cpf: z.string().min(11).max(14),
+        senha: z.string().min(4),
+        nome: z.string().min(2),
+        email: z.string().email().optional(),
+        telefone: z.string().optional(),
+        escolaId: z.number(),
+        comprovantePix: z.string().optional(),
+      }))
+      .mutation(async ({ input }) => {
+        // Verificar se CPF já existe
+        const existente = await db.getUserByCpf(input.cpf);
+        if (existente) {
+          return {
+            success: false as const,
+            error: "cpf_ja_cadastrado",
+            userId: null,
+          };
+        }
+
+        const userId = await db.createUserCpf({
+          cpf: input.cpf,
+          senha: input.senha,
+          nome: input.nome,
+          email: input.email,
+          telefone: input.telefone,
+          escolaId: input.escolaId,
+          comprovantePix: input.comprovantePix,
+        });
+
+        // Notificar gestores sobre nova solicitação
+        await db.notificarSolicitacaoAcesso(input.escolaId, input.nome);
+
+        return {
+          success: true as const,
+          error: null,
+          userId,
+        };
+      }),
+
+    // Registrar primeiro diretor de carnaval (sem aprovação)
+    registrarDiretorCarnaval: publicProcedure
+      .input(z.object({
+        cpf: z.string().min(11).max(14),
+        senha: z.string().min(4),
+        nome: z.string().min(2),
+        email: z.string().email().optional(),
+        telefone: z.string().optional(),
+        escolaId: z.number(),
+      }))
+      .mutation(async ({ input }) => {
+        // Verificar se escola já tem diretor de carnaval
+        const temDiretor = await db.escolaTemDiretorCarnaval(input.escolaId);
+        if (temDiretor) {
+          return {
+            success: false as const,
+            error: "escola_ja_tem_diretor_carnaval",
+            userId: null,
+          };
+        }
+
+        // Verificar se CPF já existe
+        const existente = await db.getUserByCpf(input.cpf);
+        if (existente) {
+          return {
+            success: false as const,
+            error: "cpf_ja_cadastrado",
+            userId: null,
+          };
+        }
+
+        const userId = await db.criarDiretorCarnaval({
+          cpf: input.cpf,
+          senha: input.senha,
+          nome: input.nome,
+          email: input.email,
+          telefone: input.telefone,
+          escolaId: input.escolaId,
+        });
+
+        return {
+          success: true as const,
+          error: null,
+          userId,
+        };
+      }),
+
+    // Verificar status de um CPF
+    verificarCpf: publicProcedure
+      .input(z.object({
+        cpf: z.string().min(11).max(14),
+      }))
+      .query(async ({ input }) => {
+        const user = await db.getUserByCpf(input.cpf);
+        if (!user) {
+          return { existe: false as const, status: null, role: null };
+        }
+        return {
+          existe: true as const,
+          status: user.statusUsuario,
+          role: user.role,
+        };
+      }),
+
+    // Verificar se escola tem diretor de carnaval
+    escolaTemDiretor: publicProcedure
+      .input(z.object({
+        escolaId: z.number(),
+      }))
+      .query(async ({ input }) => {
+        return { temDiretor: await db.escolaTemDiretorCarnaval(input.escolaId) };
       }),
   }),
 
@@ -73,7 +226,12 @@ export const appRouter = router({
   // ESCOLAS
   // ============================================
   escolas: router({
-    // Criar nova escola (primeiro acesso do presidente)
+    // Listar escolas disponíveis
+    listar: publicProcedure.query(async () => {
+      return db.listarEscolas();
+    }),
+
+    // Criar nova escola
     criar: protectedProcedure
       .input(z.object({
         nome: z.string().min(3).max(255),
@@ -83,22 +241,12 @@ export const appRouter = router({
         estado: z.string().max(2).optional(),
       }))
       .mutation(async ({ ctx, input }) => {
-        // Verifica se usuário já tem escola
-        if (ctx.user.escolaId) {
-          throw new TRPCError({
-            code: "BAD_REQUEST",
-            message: "Você já está vinculado a uma escola",
-          });
-        }
-
         // Gera slug único
         let slug = gerarSlug(input.nome);
-        let slugExistente = await db.getEscolaBySlug(slug);
-        let contador = 1;
-        while (slugExistente) {
-          slug = `${gerarSlug(input.nome)}-${contador}`;
-          slugExistente = await db.getEscolaBySlug(slug);
+        let contador = 0;
+        while (await db.getEscolaBySlug(slug)) {
           contador++;
+          slug = `${gerarSlug(input.nome)}-${contador}`;
         }
 
         // Cria escola
@@ -111,8 +259,8 @@ export const appRouter = router({
           estado: input.estado,
         });
 
-        // Atualiza usuário como presidente da escola
-        await db.updateUserRole(ctx.user.id, "presidente", ctx.user.id);
+        // Atualiza usuário como diretor_escola da escola
+        await db.updateUserRole(ctx.user.id, "diretor_escola", ctx.user.id);
         await db.vincularUsuarioEscola(ctx.user.id, escolaId);
 
         // Registra auditoria
@@ -128,86 +276,34 @@ export const appRouter = router({
         return { escolaId, slug };
       }),
 
-    // Obter escola atual
-    atual: protectedProcedure.query(async ({ ctx }) => {
-      if (!ctx.user.escolaId) return null;
-      return db.getEscolaById(ctx.user.escolaId);
-    }),
-
-    // Atualizar escola
-    atualizar: protectedProcedure
-      .input(z.object({
-        nome: z.string().min(3).max(255).optional(),
-        logoUrl: z.string().optional(),
-        corPrimaria: z.string().max(7).optional(),
-        corSecundaria: z.string().max(7).optional(),
-        email: z.string().email().optional(),
-        telefone: z.string().optional(),
-        endereco: z.string().optional(),
-        cidade: z.string().optional(),
-        estado: z.string().max(2).optional(),
-      }))
-      .mutation(async ({ ctx, input }) => {
-        if (!ctx.user.escolaId) {
-          throw new TRPCError({ code: "BAD_REQUEST", message: "Usuário não vinculado a escola" });
-        }
-
-        const temPermissao = await db.temPermissao(ctx.user.id, "escola.editar");
-        if (!temPermissao) {
-          throw new TRPCError({ code: "FORBIDDEN", message: "Sem permissão para editar escola" });
-        }
-
-        await db.updateEscola(ctx.user.escolaId, input);
-
-        await db.registrarAuditoria({
-          usuarioId: ctx.user.id,
-          escolaId: ctx.user.escolaId,
-          acao: "atualizar",
-          entidade: "escola",
-          entidadeId: String(ctx.user.escolaId),
-          detalhes: JSON.stringify(input),
-        });
-
-        return { success: true };
-      }),
-
-    // Listar escolas (para busca)
-    listar: publicProcedure.query(async () => {
-      return db.listarEscolas();
-    }),
-
-    // Buscar por slug
-    porSlug: publicProcedure
-      .input(z.object({ slug: z.string() }))
+    // Obter escola por ID
+    obter: publicProcedure
+      .input(z.object({ id: z.number() }))
       .query(async ({ input }) => {
-        return db.getEscolaBySlug(input.slug);
+        return db.getEscolaById(input.id);
       }),
   }),
 
   // ============================================
-  // USUÁRIOS
+  // GESTÃO DE USUÁRIOS
   // ============================================
   usuarios: router({
     // Listar usuários da escola
     listar: protectedProcedure.query(async ({ ctx }) => {
       if (!ctx.user.escolaId) return [];
-
+      
       const temPermissao = await db.temPermissao(ctx.user.id, "usuarios.ver_todos");
-      if (!temPermissao) {
-        throw new TRPCError({ code: "FORBIDDEN", message: "Sem permissão" });
-      }
+      if (!temPermissao) return [];
 
       return db.getUsersByEscola(ctx.user.escolaId);
     }),
 
-    // Listar pendentes de aprovação
+    // Listar usuários pendentes
     pendentes: protectedProcedure.query(async ({ ctx }) => {
       if (!ctx.user.escolaId) return [];
 
       const temPermissao = await db.temPermissao(ctx.user.id, "escola.aprovar_usuarios");
-      if (!temPermissao) {
-        throw new TRPCError({ code: "FORBIDDEN", message: "Sem permissão" });
-      }
+      if (!temPermissao) return [];
 
       return db.getUsuariosPendentes(ctx.user.escolaId);
     }),
@@ -216,7 +312,7 @@ export const appRouter = router({
     aprovar: protectedProcedure
       .input(z.object({
         usuarioId: z.number(),
-        role: z.enum(["diretor", "coordenador", "integrante", "contribuinte"]),
+        role: z.enum(ROLES_APROVACAO),
       }))
       .mutation(async ({ ctx, input }) => {
         const temPermissao = await db.temPermissao(ctx.user.id, "escola.aprovar_usuarios");
@@ -224,21 +320,8 @@ export const appRouter = router({
           throw new TRPCError({ code: "FORBIDDEN", message: "Sem permissão" });
         }
 
-        // Verificar hierarquia de aprovação
-        const roleHierarquia: Record<string, number> = {
-          master: 5,
-          presidente: 4,
-          diretor: 3,
-          coordenador: 2,
-          integrante: 1,
-          contribuinte: 0,
-        };
-
-        const meuNivel = roleHierarquia[ctx.user.role] ?? 0;
-        const nivelAlvo = roleHierarquia[input.role] ?? 0;
-
-        // Só pode aprovar para níveis inferiores ao seu
-        if (nivelAlvo >= meuNivel && ctx.user.role !== "master") {
+        // Verificar hierarquia - só pode aprovar roles abaixo do seu
+        if (!podeAprovarRole(ctx.user.role as Role, input.role)) {
           throw new TRPCError({ 
             code: "FORBIDDEN", 
             message: `Você não pode aprovar usuários como ${input.role}` 
@@ -301,7 +384,7 @@ export const appRouter = router({
     alterarRole: protectedProcedure
       .input(z.object({
         usuarioId: z.number(),
-        role: z.enum(["presidente", "diretor", "coordenador", "integrante", "contribuinte"]),
+        role: z.enum(ROLES_ALTERACAO),
       }))
       .mutation(async ({ ctx, input }) => {
         const temPermissao = await db.temPermissao(ctx.user.id, "usuarios.alterar_role");
@@ -314,9 +397,9 @@ export const appRouter = router({
           throw new TRPCError({ code: "BAD_REQUEST", message: "Não pode alterar próprio role" });
         }
 
-        // Não pode promover a presidente se não for presidente/master
-        if (input.role === "presidente" && ctx.user.role !== "master" && ctx.user.role !== "presidente") {
-          throw new TRPCError({ code: "FORBIDDEN", message: "Apenas presidente pode promover outro presidente" });
+        // Verificar hierarquia
+        if (!podeAprovarRole(ctx.user.role as Role, input.role)) {
+          throw new TRPCError({ code: "FORBIDDEN", message: "Não pode promover a um nível igual ou superior ao seu" });
         }
 
         await db.updateUserRole(input.usuarioId, input.role, ctx.user.id);
@@ -364,7 +447,7 @@ export const appRouter = router({
     criar: protectedProcedure
       .input(z.object({
         email: z.string().email(),
-        role: z.enum(["diretor", "coordenador", "integrante", "contribuinte"]),
+        role: z.enum(ROLES_APROVACAO),
         diasValidade: z.number().min(1).max(30).default(7),
       }))
       .mutation(async ({ ctx, input }) => {
@@ -378,12 +461,12 @@ export const appRouter = router({
         }
 
         // Verifica limite do plano
-        const limite = await db.verificarLimitePlano(ctx.user.escolaId);
-        if (!limite.permitido) {
-          throw new TRPCError({
-            code: "FORBIDDEN",
-            message: `Limite de ${limite.limite} usuários atingido. Faça upgrade do plano.`,
-          });
+        const escola = await db.getEscolaById(ctx.user.escolaId);
+        if (escola) {
+          const totalUsuarios = await db.countUsuariosEscola(ctx.user.escolaId);
+          if (totalUsuarios >= escola.limiteUsuarios) {
+            throw new TRPCError({ code: "FORBIDDEN", message: "Limite de usuários atingido" });
+          }
         }
 
         const codigo = gerarCodigoConvite();
@@ -407,8 +490,14 @@ export const appRouter = router({
           detalhes: JSON.stringify({ email: input.email, role: input.role }),
         });
 
-        return { codigo, expiraEm };
+        return { codigo };
       }),
+
+    // Listar convites da escola
+    listar: protectedProcedure.query(async ({ ctx }) => {
+      if (!ctx.user.escolaId) return [];
+      return db.getConvitesByEscola(ctx.user.escolaId);
+    }),
 
     // Usar convite
     usar: protectedProcedure
@@ -431,52 +520,39 @@ export const appRouter = router({
         // Vincula usuário à escola com o role do convite
         await db.vincularUsuarioEscola(ctx.user.id, convite.escolaId);
         await db.updateUserRole(ctx.user.id, convite.role, convite.criadoPor);
-        await db.usarConvite(input.codigo, ctx.user.id);
-
-        await db.registrarAuditoria({
-          usuarioId: ctx.user.id,
-          escolaId: convite.escolaId,
-          acao: "usar",
-          entidade: "convite",
-          entidadeId: String(convite.id),
-        });
+        await db.usarConvite(convite.codigo, ctx.user.id);
 
         return { success: true, escolaId: convite.escolaId };
       }),
-
-    // Listar convites da escola
-    listar: protectedProcedure.query(async ({ ctx }) => {
-      if (!ctx.user.escolaId) return [];
-      return db.getConvitesByEscola(ctx.user.escolaId);
-    }),
   }),
 
   // ============================================
   // SOLICITAÇÕES DE ACESSO
   // ============================================
   solicitacoes: router({
-    // Solicitar acesso a uma escola
+    // Criar solicitação
     criar: protectedProcedure
       .input(z.object({
         escolaId: z.number(),
         mensagem: z.string().max(500).optional(),
       }))
       .mutation(async ({ ctx, input }) => {
-        if (ctx.user.escolaId) {
-          throw new TRPCError({ code: "BAD_REQUEST", message: "Você já está vinculado a uma escola" });
-        }
-
         await db.createSolicitacaoAcesso({
           usuarioId: ctx.user.id,
           escolaId: input.escolaId,
           mensagem: input.mensagem,
         });
 
-        // Notificar gestores da escola sobre nova solicitação
-        await db.notificarSolicitacaoAcesso(
-          input.escolaId, 
-          ctx.user.name || ctx.user.email || "Novo usuário"
-        );
+        // Notificar gestores da escola
+        const userName = ctx.user.name ?? "Novo usuário";
+        await db.notificarSolicitacaoAcesso(input.escolaId, userName);
+
+        await db.registrarAuditoria({
+          usuarioId: ctx.user.id,
+          escolaId: input.escolaId,
+          acao: "solicitar_acesso",
+          entidade: "solicitacao",
+        });
 
         return { success: true };
       }),
@@ -495,7 +571,7 @@ export const appRouter = router({
     aprovar: protectedProcedure
       .input(z.object({
         solicitacaoId: z.number(),
-        role: z.enum(["diretor", "coordenador", "integrante", "contribuinte"]),
+        role: z.enum(ROLES_APROVACAO),
       }))
       .mutation(async ({ ctx, input }) => {
         const temPermissao = await db.temPermissao(ctx.user.id, "escola.aprovar_usuarios");
@@ -558,7 +634,7 @@ export const appRouter = router({
   permissoes: router({
     // Listar permissões do usuário atual
     minhas: protectedProcedure.query(async ({ ctx }) => {
-      const permissoesRole = PERMISSOES_POR_ROLE[ctx.user.role];
+      const permissoesRole = PERMISSOES_POR_ROLE[ctx.user.role as Role] ?? [];
       const permissoesCustomizadas = await db.getPermissoesCustomizadas(ctx.user.id);
 
       return {
@@ -576,8 +652,8 @@ export const appRouter = router({
         valor: z.boolean().default(true),
       }))
       .mutation(async ({ ctx, input }) => {
-        // Apenas master e presidente podem adicionar permissões
-        if (ctx.user.role !== "master" && ctx.user.role !== "presidente") {
+        // Apenas master e diretor_escola podem adicionar permissões
+        if (ctx.user.role !== "master" && ctx.user.role !== "diretor_escola") {
           throw new TRPCError({ code: "FORBIDDEN", message: "Sem permissão" });
         }
 
@@ -606,7 +682,7 @@ export const appRouter = router({
         permissao: z.string(),
       }))
       .mutation(async ({ ctx, input }) => {
-        if (ctx.user.role !== "master" && ctx.user.role !== "presidente") {
+        if (ctx.user.role !== "master" && ctx.user.role !== "diretor_escola") {
           throw new TRPCError({ code: "FORBIDDEN", message: "Sem permissão" });
         }
 
@@ -628,17 +704,14 @@ export const appRouter = router({
   // NOTIFICAÇÕES INTERNAS
   // ============================================
   notificacoes: router({
-    // Listar notificações do usuário
     listar: protectedProcedure.query(async ({ ctx }) => {
       return db.getNotificacoesUsuario(ctx.user.id);
     }),
 
-    // Contar não lidas
     contarNaoLidas: protectedProcedure.query(async ({ ctx }) => {
       return db.contarNotificacoesNaoLidas(ctx.user.id);
     }),
 
-    // Marcar como lida
     marcarLida: protectedProcedure
       .input(z.object({ id: z.number() }))
       .mutation(async ({ ctx, input }) => {
@@ -646,13 +719,11 @@ export const appRouter = router({
         return { success: true };
       }),
 
-    // Marcar todas como lidas
     marcarTodasLidas: protectedProcedure.mutation(async ({ ctx }) => {
       await db.marcarTodasNotificacoesLidas(ctx.user.id);
       return { success: true };
     }),
 
-    // Excluir notificação
     excluir: protectedProcedure
       .input(z.object({ id: z.number() }))
       .mutation(async ({ ctx, input }) => {
@@ -665,22 +736,16 @@ export const appRouter = router({
   // DASHBOARD / MÉTRICAS
   // ============================================
   dashboard: router({
-    // Métricas gerais da escola (para presidente)
     metricas: protectedProcedure.query(async ({ ctx }) => {
-      if (!ctx.user.escolaId) {
-        return null;
-      }
+      if (!ctx.user.escolaId) return null;
 
-      // Verificar se é gestor
-      const isGestor = ["master", "presidente", "diretor"].includes(ctx.user.role);
-      if (!isGestor) {
+      if (!isGestor(ctx.user.role)) {
         throw new TRPCError({ code: "FORBIDDEN", message: "Acesso restrito a gestores" });
       }
 
       return db.getMetricasEscola(ctx.user.escolaId);
     }),
 
-    // Usuários pendentes de aprovação
     usuariosPendentes: protectedProcedure.query(async ({ ctx }) => {
       if (!ctx.user.escolaId) return [];
 
@@ -690,22 +755,18 @@ export const appRouter = router({
       return db.getUsuariosPendentes(ctx.user.escolaId);
     }),
 
-    // Alertas do sistema
     alertas: protectedProcedure.query(async ({ ctx }) => {
       if (!ctx.user.escolaId) return [];
 
-      const isGestor = ["master", "presidente", "diretor"].includes(ctx.user.role);
-      if (!isGestor) return [];
+      if (!isGestor(ctx.user.role)) return [];
 
       return db.getAlertasSistema(ctx.user.escolaId);
     }),
 
-    // Atividade recente
     atividadeRecente: protectedProcedure.query(async ({ ctx }) => {
       if (!ctx.user.escolaId) return [];
 
-      const isGestor = ["master", "presidente", "diretor"].includes(ctx.user.role);
-      if (!isGestor) return [];
+      if (!isGestor(ctx.user.role)) return [];
 
       return db.getAtividadeRecente(ctx.user.escolaId, 20);
     }),

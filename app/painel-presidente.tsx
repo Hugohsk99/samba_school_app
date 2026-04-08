@@ -256,7 +256,7 @@ export default function PainelPresidenteScreen() {
   const isLoading = metricasQuery.isLoading;
 
   // Verificar permissão
-  const isGestor = user && ["master", "presidente", "diretor"].includes((user as any).role || "");
+  const isGestor = user && ["master", "diretor_escola", "diretor_carnaval", "diretor_ala"].includes((user as any).role || "");
 
   if (!isGestor) {
     return (

@@ -1,234 +1,276 @@
 /**
- * Contexto de Autenticação e Hierarquia de Permissões
+ * Contexto de Autenticação integrado ao banco de dados
  * 
- * Níveis de acesso:
- * - Diretoria: Acesso total a todas as funcionalidades
- * - Coordenador: Pode fazer check-in, ver relatórios da sua ala
- * - Integrante: Acesso apenas ao próprio perfil e QR Code
+ * Hierarquia de 7 níveis (conforme documento "100 Anos"):
+ * 1. master - Acesso total global
+ * 2. diretor_escola - Máximo dentro da escola
+ * 3. diretor_carnaval - Operacional avançado
+ * 4. diretor_ala - Restrito à ala
+ * 5. diretor_segmento - Restrito ao segmento
+ * 6. integrante - Membro aprovado (leitura)
+ * 7. pendente - Aguardando aprovação
+ * 
+ * Fluxo:
+ * Landing → Login CPF → (cadastro se novo) → Home
+ * Dados persistidos em AsyncStorage + banco de dados via tRPC
  */
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import type { Integrante, CategoriaIntegrante, CargoDiretoria } from "./types";
+import { trpc } from "./trpc";
 
-// Níveis de acesso
+// Roles do sistema (espelha o schema do banco)
+export type RoleSistema =
+  | "master"
+  | "diretor_escola"
+  | "diretor_carnaval"
+  | "diretor_ala"
+  | "diretor_segmento"
+  | "integrante"
+  | "pendente";
+
+export type StatusUsuario = "pendente" | "aprovado" | "rejeitado" | "suspenso";
+
+// Mapeamento de nível de acesso legado para compatibilidade
 export type NivelAcesso = "diretoria" | "coordenador" | "integrante" | "visitante";
 
-// Permissões disponíveis
+// Dados do usuário logado
+export interface UsuarioLogado {
+  id: number;
+  cpf: string;
+  nome: string;
+  email?: string | null;
+  telefone?: string | null;
+  role: RoleSistema;
+  statusUsuario: StatusUsuario;
+  escolaId?: number | null;
+  alaId?: string | null;
+  segmentoId?: string | null;
+  fotoUrl?: string | null;
+  escola?: {
+    id: number;
+    nome: string;
+    slug: string;
+    logoUrl?: string | null;
+    corPrimaria?: string | null;
+    corSecundaria?: string | null;
+    plano: string;
+  } | null;
+}
+
+// Permissões do sistema
 export interface Permissoes {
-  // Gestão de Integrantes
   verTodosIntegrantes: boolean;
   cadastrarIntegrante: boolean;
   editarIntegrante: boolean;
   excluirIntegrante: boolean;
-  
-  // Gestão de Blocos
   verTodosBlocos: boolean;
   cadastrarBloco: boolean;
   editarBloco: boolean;
   excluirBloco: boolean;
-  
-  // Gestão de Eventos
   verTodosEventos: boolean;
   cadastrarEvento: boolean;
   editarEvento: boolean;
   excluirEvento: boolean;
-  
-  // Check-in
   fazerCheckIn: boolean;
   verRelatoriosPresenca: boolean;
-  
-  // Almoxarifado
   verAlmoxarifado: boolean;
   cadastrarMaterial: boolean;
   editarMaterial: boolean;
   excluirMaterial: boolean;
-  
-  // Configurações
   acessarConfiguracoes: boolean;
   gestaoDados: boolean;
-  
-  // Próprio perfil
   verProprioPerfilApenas: boolean;
   verPropriaCarteirinha: boolean;
+  gerenciarUsuarios: boolean;
+  aprovarUsuarios: boolean;
+  gerenciarFinanceiro: boolean;
+  verPainelPresidente: boolean;
 }
 
-// Permissões por nível
-const PERMISSOES_POR_NIVEL: Record<NivelAcesso, Permissoes> = {
-  diretoria: {
-    verTodosIntegrantes: true,
-    cadastrarIntegrante: true,
-    editarIntegrante: true,
-    excluirIntegrante: true,
-    verTodosBlocos: true,
-    cadastrarBloco: true,
-    editarBloco: true,
-    excluirBloco: true,
-    verTodosEventos: true,
-    cadastrarEvento: true,
-    editarEvento: true,
-    excluirEvento: true,
-    fazerCheckIn: true,
-    verRelatoriosPresenca: true,
-    verAlmoxarifado: true,
-    cadastrarMaterial: true,
-    editarMaterial: true,
-    excluirMaterial: true,
-    acessarConfiguracoes: true,
-    gestaoDados: true,
-    verProprioPerfilApenas: false,
-    verPropriaCarteirinha: true,
+// Permissões por role
+const PERMISSOES_POR_ROLE: Record<RoleSistema, Permissoes> = {
+  master: {
+    verTodosIntegrantes: true, cadastrarIntegrante: true, editarIntegrante: true, excluirIntegrante: true,
+    verTodosBlocos: true, cadastrarBloco: true, editarBloco: true, excluirBloco: true,
+    verTodosEventos: true, cadastrarEvento: true, editarEvento: true, excluirEvento: true,
+    fazerCheckIn: true, verRelatoriosPresenca: true,
+    verAlmoxarifado: true, cadastrarMaterial: true, editarMaterial: true, excluirMaterial: true,
+    acessarConfiguracoes: true, gestaoDados: true,
+    verProprioPerfilApenas: false, verPropriaCarteirinha: true,
+    gerenciarUsuarios: true, aprovarUsuarios: true, gerenciarFinanceiro: true, verPainelPresidente: true,
   },
-  coordenador: {
-    verTodosIntegrantes: true,
-    cadastrarIntegrante: true,
-    editarIntegrante: true,
-    excluirIntegrante: false,
-    verTodosBlocos: true,
-    cadastrarBloco: false,
-    editarBloco: false,
-    excluirBloco: false,
-    verTodosEventos: true,
-    cadastrarEvento: true,
-    editarEvento: true,
-    excluirEvento: false,
-    fazerCheckIn: true,
-    verRelatoriosPresenca: true,
-    verAlmoxarifado: true,
-    cadastrarMaterial: true,
-    editarMaterial: true,
-    excluirMaterial: false,
-    acessarConfiguracoes: false,
-    gestaoDados: false,
-    verProprioPerfilApenas: false,
-    verPropriaCarteirinha: true,
+  diretor_escola: {
+    verTodosIntegrantes: true, cadastrarIntegrante: true, editarIntegrante: true, excluirIntegrante: true,
+    verTodosBlocos: true, cadastrarBloco: true, editarBloco: true, excluirBloco: true,
+    verTodosEventos: true, cadastrarEvento: true, editarEvento: true, excluirEvento: true,
+    fazerCheckIn: true, verRelatoriosPresenca: true,
+    verAlmoxarifado: true, cadastrarMaterial: true, editarMaterial: true, excluirMaterial: true,
+    acessarConfiguracoes: true, gestaoDados: true,
+    verProprioPerfilApenas: false, verPropriaCarteirinha: true,
+    gerenciarUsuarios: true, aprovarUsuarios: true, gerenciarFinanceiro: true, verPainelPresidente: true,
+  },
+  diretor_carnaval: {
+    verTodosIntegrantes: true, cadastrarIntegrante: true, editarIntegrante: true, excluirIntegrante: true,
+    verTodosBlocos: true, cadastrarBloco: true, editarBloco: true, excluirBloco: true,
+    verTodosEventos: true, cadastrarEvento: true, editarEvento: true, excluirEvento: true,
+    fazerCheckIn: true, verRelatoriosPresenca: true,
+    verAlmoxarifado: true, cadastrarMaterial: true, editarMaterial: true, excluirMaterial: true,
+    acessarConfiguracoes: true, gestaoDados: true,
+    verProprioPerfilApenas: false, verPropriaCarteirinha: true,
+    gerenciarUsuarios: true, aprovarUsuarios: true, gerenciarFinanceiro: true, verPainelPresidente: true,
+  },
+  diretor_ala: {
+    verTodosIntegrantes: true, cadastrarIntegrante: true, editarIntegrante: true, excluirIntegrante: false,
+    verTodosBlocos: true, cadastrarBloco: false, editarBloco: false, excluirBloco: false,
+    verTodosEventos: true, cadastrarEvento: true, editarEvento: true, excluirEvento: false,
+    fazerCheckIn: true, verRelatoriosPresenca: true,
+    verAlmoxarifado: true, cadastrarMaterial: true, editarMaterial: true, excluirMaterial: false,
+    acessarConfiguracoes: false, gestaoDados: false,
+    verProprioPerfilApenas: false, verPropriaCarteirinha: true,
+    gerenciarUsuarios: false, aprovarUsuarios: true, gerenciarFinanceiro: false, verPainelPresidente: false,
+  },
+  diretor_segmento: {
+    verTodosIntegrantes: true, cadastrarIntegrante: true, editarIntegrante: true, excluirIntegrante: false,
+    verTodosBlocos: true, cadastrarBloco: false, editarBloco: false, excluirBloco: false,
+    verTodosEventos: true, cadastrarEvento: false, editarEvento: false, excluirEvento: false,
+    fazerCheckIn: true, verRelatoriosPresenca: true,
+    verAlmoxarifado: true, cadastrarMaterial: false, editarMaterial: false, excluirMaterial: false,
+    acessarConfiguracoes: false, gestaoDados: false,
+    verProprioPerfilApenas: false, verPropriaCarteirinha: true,
+    gerenciarUsuarios: false, aprovarUsuarios: false, gerenciarFinanceiro: false, verPainelPresidente: false,
   },
   integrante: {
-    verTodosIntegrantes: false,
-    cadastrarIntegrante: false,
-    editarIntegrante: false,
-    excluirIntegrante: false,
-    verTodosBlocos: false,
-    cadastrarBloco: false,
-    editarBloco: false,
-    excluirBloco: false,
-    verTodosEventos: true,
-    cadastrarEvento: false,
-    editarEvento: false,
-    excluirEvento: false,
-    fazerCheckIn: false,
-    verRelatoriosPresenca: false,
-    verAlmoxarifado: false,
-    cadastrarMaterial: false,
-    editarMaterial: false,
-    excluirMaterial: false,
-    acessarConfiguracoes: false,
-    gestaoDados: false,
-    verProprioPerfilApenas: true,
-    verPropriaCarteirinha: true,
+    verTodosIntegrantes: false, cadastrarIntegrante: false, editarIntegrante: false, excluirIntegrante: false,
+    verTodosBlocos: false, cadastrarBloco: false, editarBloco: false, excluirBloco: false,
+    verTodosEventos: true, cadastrarEvento: false, editarEvento: false, excluirEvento: false,
+    fazerCheckIn: false, verRelatoriosPresenca: false,
+    verAlmoxarifado: false, cadastrarMaterial: false, editarMaterial: false, excluirMaterial: false,
+    acessarConfiguracoes: false, gestaoDados: false,
+    verProprioPerfilApenas: true, verPropriaCarteirinha: true,
+    gerenciarUsuarios: false, aprovarUsuarios: false, gerenciarFinanceiro: false, verPainelPresidente: false,
   },
-  visitante: {
-    verTodosIntegrantes: true,
-    cadastrarIntegrante: true,
-    editarIntegrante: true,
-    excluirIntegrante: true,
-    verTodosBlocos: true,
-    cadastrarBloco: true,
-    editarBloco: true,
-    excluirBloco: true,
-    verTodosEventos: true,
-    cadastrarEvento: true,
-    editarEvento: true,
-    excluirEvento: true,
-    fazerCheckIn: true,
-    verRelatoriosPresenca: true,
-    verAlmoxarifado: true,
-    cadastrarMaterial: true,
-    editarMaterial: true,
-    excluirMaterial: true,
-    acessarConfiguracoes: true,
-    gestaoDados: true,
-    verProprioPerfilApenas: false,
-    verPropriaCarteirinha: true,
+  pendente: {
+    verTodosIntegrantes: false, cadastrarIntegrante: false, editarIntegrante: false, excluirIntegrante: false,
+    verTodosBlocos: false, cadastrarBloco: false, editarBloco: false, excluirBloco: false,
+    verTodosEventos: false, cadastrarEvento: false, editarEvento: false, excluirEvento: false,
+    fazerCheckIn: false, verRelatoriosPresenca: false,
+    verAlmoxarifado: false, cadastrarMaterial: false, editarMaterial: false, excluirMaterial: false,
+    acessarConfiguracoes: false, gestaoDados: false,
+    verProprioPerfilApenas: true, verPropriaCarteirinha: false,
+    gerenciarUsuarios: false, aprovarUsuarios: false, gerenciarFinanceiro: false, verPainelPresidente: false,
   },
 };
 
-// Sessão do usuário
+// Mapear role do banco para NivelAcesso legado (compatibilidade)
+function roleParaNivelAcesso(role: RoleSistema): NivelAcesso {
+  switch (role) {
+    case "master":
+    case "diretor_escola":
+    case "diretor_carnaval":
+      return "diretoria";
+    case "diretor_ala":
+    case "diretor_segmento":
+      return "coordenador";
+    case "integrante":
+      return "integrante";
+    case "pendente":
+    default:
+      return "visitante";
+  }
+}
+
+// Sessão legada para compatibilidade com telas existentes
 export interface SessaoUsuario {
   integranteId: string;
   nome: string;
   foto?: string;
-  categoria: CategoriaIntegrante;
-  cargoDiretoria?: CargoDiretoria;
+  categoria: string;
+  cargoDiretoria?: string;
   nivelAcesso: NivelAcesso;
   blocosIds: string[];
   loginEm: string;
+  // Novos campos do banco
+  userId?: number;
+  role?: RoleSistema;
+  statusUsuario?: StatusUsuario;
+  escolaId?: number;
+  cpf?: string;
 }
 
 // Contexto
 interface AuthContextType {
+  // Dados do usuário
   sessao: SessaoUsuario | null;
+  usuario: UsuarioLogado | null;
   permissoes: Permissoes;
   nivelAcesso: NivelAcesso;
+  role: RoleSistema;
   isLoading: boolean;
   isLoggedIn: boolean;
   
-  // Ações
-  login: (integrante: Integrante) => Promise<void>;
-  logout: () => Promise<void>;
+  // Ações de login
+  loginCpf: (cpf: string, senha: string) => Promise<{ success: boolean; error?: string }>;
   loginComoAdmin: () => Promise<void>;
+  login: (integrante: any) => Promise<void>;
+  logout: () => Promise<void>;
+  
+  // Registro
+  registrarCpf: (dados: {
+    cpf: string;
+    senha: string;
+    nome: string;
+    email?: string;
+    telefone?: string;
+    escolaId: number;
+    comprovantePix?: string;
+  }) => Promise<{ success: boolean; error?: string }>;
+  
+  registrarDiretorCarnaval: (dados: {
+    cpf: string;
+    senha: string;
+    nome: string;
+    email?: string;
+    telefone?: string;
+    escolaId: number;
+  }) => Promise<{ success: boolean; error?: string }>;
   
   // Helpers
   temPermissao: (permissao: keyof Permissoes) => boolean;
   podeAcessarIntegrante: (integranteId: string) => boolean;
   podeAcessarBloco: (blocoId: string) => boolean;
+  isGestor: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const STORAGE_KEY = "@samba_school_sessao";
-
-// Determinar nível de acesso baseado na categoria e cargo
-function determinarNivelAcesso(integrante: Integrante): NivelAcesso {
-  if (integrante.categoria === "diretoria") {
-    // Cargos de diretoria com acesso total
-    const cargosAltos: CargoDiretoria[] = [
-      "presidente",
-      "vice_presidente",
-      "diretor_carnaval",
-      "diretor_harmonia",
-      "diretor_bateria",
-      "diretor_comunicacao",
-    ];
-    
-    if (integrante.cargoDiretoria && cargosAltos.includes(integrante.cargoDiretoria)) {
-      return "diretoria";
-    }
-    
-    // Coordenadores e staff
-    if (integrante.cargoDiretoria === "coordenador") {
-      return "coordenador";
-    }
-    
-    // Staff tem acesso de coordenador
-    return "coordenador";
-  }
-  
-  // Segmentos e desfilantes são integrantes comuns
-  return "integrante";
-}
+const SESSAO_KEY = "@samba_sessao_v2";
+const USUARIO_KEY = "@samba_usuario_v2";
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [sessao, setSessao] = useState<SessaoUsuario | null>(null);
+  const [usuario, setUsuario] = useState<UsuarioLogado | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Carregar sessão salva
+  // tRPC mutations
+  const loginCpfMutation = trpc.auth.loginCpf.useMutation();
+  const registrarCpfMutation = trpc.auth.registrarCpf.useMutation();
+  const registrarDiretorMutation = trpc.auth.registrarDiretorCarnaval.useMutation();
+
+  // Carregar sessão salva do AsyncStorage
   useEffect(() => {
     const carregarSessao = async () => {
       try {
-        const sessaoSalva = await AsyncStorage.getItem(STORAGE_KEY);
+        const [sessaoSalva, usuarioSalvo] = await Promise.all([
+          AsyncStorage.getItem(SESSAO_KEY),
+          AsyncStorage.getItem(USUARIO_KEY),
+        ]);
+        
         if (sessaoSalva) {
           setSessao(JSON.parse(sessaoSalva));
+        }
+        if (usuarioSalvo) {
+          setUsuario(JSON.parse(usuarioSalvo));
         }
       } catch (error) {
         console.error("Erro ao carregar sessão:", error);
@@ -236,99 +278,237 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setIsLoading(false);
       }
     };
-
     carregarSessao();
   }, []);
 
   // Salvar sessão
-  const salvarSessao = useCallback(async (novaSessao: SessaoUsuario | null) => {
+  const salvarSessao = useCallback(async (
+    novaSessao: SessaoUsuario | null,
+    novoUsuario: UsuarioLogado | null
+  ) => {
     try {
       if (novaSessao) {
-        await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(novaSessao));
+        await AsyncStorage.setItem(SESSAO_KEY, JSON.stringify(novaSessao));
       } else {
-        await AsyncStorage.removeItem(STORAGE_KEY);
+        await AsyncStorage.removeItem(SESSAO_KEY);
+      }
+      if (novoUsuario) {
+        await AsyncStorage.setItem(USUARIO_KEY, JSON.stringify(novoUsuario));
+      } else {
+        await AsyncStorage.removeItem(USUARIO_KEY);
       }
       setSessao(novaSessao);
+      setUsuario(novoUsuario);
     } catch (error) {
       console.error("Erro ao salvar sessão:", error);
     }
   }, []);
 
-  // Login com integrante
-  const login = useCallback(async (integrante: Integrante) => {
-    const nivelAcesso = determinarNivelAcesso(integrante);
-    
+  // Login por CPF + Senha (via banco de dados)
+  const loginCpf = useCallback(async (cpf: string, senha: string): Promise<{ success: boolean; error?: string }> => {
+    try {
+      const result = await loginCpfMutation.mutateAsync({ cpf, senha });
+      
+      if (!result.success || !result.user) {
+        return { success: false, error: result.error || "Erro desconhecido" };
+      }
+
+      const user = result.user;
+      const role = (user.role as RoleSistema) || "pendente";
+      const nivelAcesso = roleParaNivelAcesso(role);
+
+      const novoUsuario: UsuarioLogado = {
+        id: user.id,
+        cpf: user.cpf || cpf,
+        nome: user.nome || "",
+        email: user.email,
+        telefone: user.telefone,
+        role,
+        statusUsuario: (user.statusUsuario as StatusUsuario) || "pendente",
+        escolaId: user.escolaId,
+        alaId: user.alaId,
+        segmentoId: user.segmentoId,
+        fotoUrl: user.fotoUrl,
+        escola: user.escola ? {
+          id: user.escola.id,
+          nome: user.escola.nome,
+          slug: user.escola.slug,
+          logoUrl: user.escola.logoUrl,
+          corPrimaria: user.escola.corPrimaria,
+          corSecundaria: user.escola.corSecundaria,
+          plano: user.escola.plano,
+        } : null,
+      };
+
+      // Criar sessão legada para compatibilidade
+      const novaSessao: SessaoUsuario = {
+        integranteId: String(user.id),
+        nome: user.nome || "",
+        foto: user.fotoUrl || undefined,
+        categoria: nivelAcesso === "diretoria" ? "diretoria" : "integrante",
+        cargoDiretoria: role === "diretor_carnaval" ? "diretor_carnaval" : undefined,
+        nivelAcesso,
+        blocosIds: [],
+        loginEm: new Date().toISOString(),
+        userId: user.id,
+        role,
+        statusUsuario: (user.statusUsuario as StatusUsuario) || "pendente",
+        escolaId: user.escolaId || undefined,
+        cpf: user.cpf || cpf,
+      };
+
+      await salvarSessao(novaSessao, novoUsuario);
+      return { success: true };
+    } catch (error: any) {
+      console.error("Erro no login CPF:", error);
+      // Se o banco não estiver disponível, tentar login local
+      return { success: false, error: "Erro de conexão. Tente novamente." };
+    }
+  }, [loginCpfMutation, salvarSessao]);
+
+  // Registrar novo usuário por CPF
+  const registrarCpf = useCallback(async (dados: {
+    cpf: string;
+    senha: string;
+    nome: string;
+    email?: string;
+    telefone?: string;
+    escolaId: number;
+    comprovantePix?: string;
+  }): Promise<{ success: boolean; error?: string }> => {
+    try {
+      const result = await registrarCpfMutation.mutateAsync(dados);
+      
+      if (!result.success) {
+        return { success: false, error: result.error || "Erro no cadastro" };
+      }
+
+      return { success: true };
+    } catch (error: any) {
+      console.error("Erro no registro:", error);
+      return { success: false, error: "Erro de conexão. Tente novamente." };
+    }
+  }, [registrarCpfMutation]);
+
+  // Registrar primeiro diretor de carnaval
+  const registrarDiretorCarnaval = useCallback(async (dados: {
+    cpf: string;
+    senha: string;
+    nome: string;
+    email?: string;
+    telefone?: string;
+    escolaId: number;
+  }): Promise<{ success: boolean; error?: string }> => {
+    try {
+      const result = await registrarDiretorMutation.mutateAsync(dados);
+      
+      if (!result.success) {
+        const errorMsg = result.error === "escola_ja_tem_diretor_carnaval"
+          ? "Esta escola já possui um Diretor de Carnaval."
+          : result.error === "cpf_ja_cadastrado"
+          ? "Este CPF já está cadastrado."
+          : "Erro no cadastro";
+        return { success: false, error: errorMsg };
+      }
+
+      return { success: true };
+    } catch (error: any) {
+      console.error("Erro no registro diretor:", error);
+      return { success: false, error: "Erro de conexão. Tente novamente." };
+    }
+  }, [registrarDiretorMutation]);
+
+  // Login legado (compatibilidade com telas que usam Integrante local)
+  const login = useCallback(async (integrante: any) => {
     const novaSessao: SessaoUsuario = {
-      integranteId: integrante.id,
-      nome: integrante.nome,
+      integranteId: integrante.id || "local",
+      nome: integrante.nome || "Usuário",
       foto: integrante.foto,
-      categoria: integrante.categoria,
+      categoria: integrante.categoria || "integrante",
       cargoDiretoria: integrante.cargoDiretoria,
-      nivelAcesso,
-      blocosIds: integrante.blocosIds,
+      nivelAcesso: "diretoria", // Local = acesso total
+      blocosIds: integrante.blocosIds || [],
       loginEm: new Date().toISOString(),
     };
-    
-    await salvarSessao(novaSessao);
+    await salvarSessao(novaSessao, null);
   }, [salvarSessao]);
 
-  // Login como administrador (para desenvolvimento/testes)
+  // Login como Master (para testes)
   const loginComoAdmin = useCallback(async () => {
+    const adminUsuario: UsuarioLogado = {
+      id: 0,
+      cpf: "00000000000",
+      nome: "Administrador Master",
+      role: "master",
+      statusUsuario: "aprovado",
+    };
+
     const novaSessao: SessaoUsuario = {
       integranteId: "admin",
-      nome: "Administrador",
+      nome: "Administrador Master",
       categoria: "diretoria",
       cargoDiretoria: "presidente",
       nivelAcesso: "diretoria",
       blocosIds: [],
       loginEm: new Date().toISOString(),
+      userId: 0,
+      role: "master",
+      statusUsuario: "aprovado",
     };
     
-    await salvarSessao(novaSessao);
+    await salvarSessao(novaSessao, adminUsuario);
   }, [salvarSessao]);
 
   // Logout
   const logout = useCallback(async () => {
-    await salvarSessao(null);
+    await salvarSessao(null, null);
+    // Limpar escola selecionada também
+    await AsyncStorage.removeItem("@samba_escola_selecionada");
   }, [salvarSessao]);
 
-  // Obter nível de acesso atual
-  const nivelAcesso: NivelAcesso = sessao?.nivelAcesso || "visitante";
-  
-  // Obter permissões do nível atual
-  const permissoes = PERMISSOES_POR_NIVEL[nivelAcesso];
+  // Calcular role e permissões
+  const role: RoleSistema = usuario?.role || sessao?.role || "pendente";
+  const nivelAcesso: NivelAcesso = sessao?.nivelAcesso || roleParaNivelAcesso(role);
+  const permissoes = PERMISSOES_POR_ROLE[role] || PERMISSOES_POR_ROLE.pendente;
+  const isGestor = ["master", "diretor_escola", "diretor_carnaval", "diretor_ala"].includes(role);
 
-  // Verificar permissão específica
+  // Verificar permissão
   const temPermissao = useCallback((permissao: keyof Permissoes): boolean => {
     return permissoes[permissao];
   }, [permissoes]);
 
-  // Verificar se pode acessar um integrante específico
+  // Verificar acesso a integrante
   const podeAcessarIntegrante = useCallback((integranteId: string): boolean => {
     if (permissoes.verTodosIntegrantes) return true;
     if (permissoes.verProprioPerfilApenas && sessao?.integranteId === integranteId) return true;
     return false;
   }, [permissoes, sessao]);
 
-  // Verificar se pode acessar um bloco específico
+  // Verificar acesso a bloco
   const podeAcessarBloco = useCallback((blocoId: string): boolean => {
     if (permissoes.verTodosBlocos) return true;
-    if (sessao?.blocosIds.includes(blocoId)) return true;
+    if (sessao?.blocosIds?.includes(blocoId)) return true;
     return false;
   }, [permissoes, sessao]);
 
   const value: AuthContextType = {
     sessao,
+    usuario,
     permissoes,
     nivelAcesso,
+    role,
     isLoading,
     isLoggedIn: sessao !== null,
+    loginCpf,
+    loginComoAdmin,
     login,
     logout,
-    loginComoAdmin,
+    registrarCpf,
+    registrarDiretorCarnaval,
     temPermissao,
     podeAcessarIntegrante,
     podeAcessarBloco,
+    isGestor,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
@@ -342,14 +522,15 @@ export function useAuth() {
   return context;
 }
 
-// Hook para verificar permissão e mostrar mensagem se não tiver
+// Hook para verificar permissão
 export function usePermissao(permissao: keyof Permissoes) {
-  const { temPermissao, nivelAcesso } = useAuth();
+  const { temPermissao, nivelAcesso, role } = useAuth();
   const permitido = temPermissao(permissao);
   
   return {
     permitido,
     nivelAcesso,
+    role,
     mensagemBloqueio: permitido 
       ? null 
       : "Você não tem permissão para acessar esta funcionalidade.",

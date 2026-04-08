@@ -759,3 +759,141 @@ export async function getAtividadeRecente(escolaId: number, limite: number = 20)
     .orderBy(desc(auditLog.criadoEm))
     .limit(limite);
 }
+
+
+// ============================================
+// AUTENTICAÇÃO POR CPF + SENHA
+// ============================================
+
+import crypto from "crypto";
+
+function hashSenha(senha: string): string {
+  return crypto.createHash("sha256").update(senha).digest("hex");
+}
+
+export function verificarSenhaHash(senha: string, hash: string): boolean {
+  return hashSenha(senha) === hash;
+}
+
+export async function getUserByCpf(cpf: string) {
+  const db = await getDb();
+  if (!db) return undefined;
+
+  const cpfLimpo = cpf.replace(/\D/g, "");
+  const result = await db.select().from(users).where(eq(users.cpf, cpfLimpo)).limit(1);
+  return result.length > 0 ? result[0] : undefined;
+}
+
+export async function createUserCpf(data: {
+  cpf: string;
+  senha: string;
+  nome: string;
+  email?: string;
+  telefone?: string;
+  escolaId: number;
+  comprovantePix?: string;
+}): Promise<number> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  const cpfLimpo = data.cpf.replace(/\D/g, "");
+  const senhaHashed = hashSenha(data.senha);
+  
+  // Gerar openId único baseado no CPF (para compatibilidade)
+  const openId = `cpf_${cpfLimpo}_${Date.now()}`;
+
+  const result = await db.insert(users).values({
+    cpf: cpfLimpo,
+    senhaHash: senhaHashed,
+    openId,
+    name: data.nome,
+    email: data.email || null,
+    telefone: data.telefone || null,
+    loginMethod: "cpf",
+    role: "pendente",
+    statusUsuario: "pendente",
+    escolaId: data.escolaId,
+    comprovantePix: data.comprovantePix || null,
+  });
+
+  return result[0].insertId;
+}
+
+export async function loginCpf(cpf: string, senha: string): Promise<{ success: boolean; user?: any; error?: string }> {
+  const user = await getUserByCpf(cpf);
+  
+  if (!user) {
+    return { success: false, error: "cpf_nao_encontrado" };
+  }
+
+  if (!user.senhaHash) {
+    // Primeira vez - definir senha
+    const db = await getDb();
+    if (!db) throw new Error("Database not available");
+    
+    const senhaHashed = hashSenha(senha);
+    await db.update(users).set({ senhaHash: senhaHashed }).where(eq(users.id, user.id));
+    
+    return { success: true, user: { ...user, senhaHash: senhaHashed } };
+  }
+
+  if (!verificarSenhaHash(senha, user.senhaHash)) {
+    return { success: false, error: "senha_incorreta" };
+  }
+
+  // Atualizar lastSignedIn
+  const db = await getDb();
+  if (db) {
+    await db.update(users).set({ lastSignedIn: new Date() }).where(eq(users.id, user.id));
+  }
+
+  return { success: true, user };
+}
+
+// Criar primeiro diretor de carnaval para uma escola (sem aprovação)
+export async function criarDiretorCarnaval(data: {
+  cpf: string;
+  senha: string;
+  nome: string;
+  email?: string;
+  telefone?: string;
+  escolaId: number;
+}): Promise<number> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  const cpfLimpo = data.cpf.replace(/\D/g, "");
+  const senhaHashed = hashSenha(data.senha);
+  const openId = `cpf_${cpfLimpo}_${Date.now()}`;
+
+  const result = await db.insert(users).values({
+    cpf: cpfLimpo,
+    senhaHash: senhaHashed,
+    openId,
+    name: data.nome,
+    email: data.email || null,
+    telefone: data.telefone || null,
+    loginMethod: "cpf",
+    role: "diretor_carnaval",
+    statusUsuario: "aprovado",
+    escolaId: data.escolaId,
+  });
+
+  return result[0].insertId;
+}
+
+// Verificar se escola já tem diretor de carnaval
+export async function escolaTemDiretorCarnaval(escolaId: number): Promise<boolean> {
+  const db = await getDb();
+  if (!db) return false;
+
+  const result = await db.select().from(users).where(
+    and(
+      eq(users.escolaId, escolaId),
+      eq(users.role, "diretor_carnaval"),
+      eq(users.statusUsuario, "aprovado")
+    )
+  ).limit(1);
+
+  return result.length > 0;
+}

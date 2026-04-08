@@ -26,11 +26,11 @@ import { trpc } from "@/lib/trpc";
 import { usePermissions, Role } from "@/lib/permissions-context";
 import { useToast } from "@/lib/toast-context";
 
-const ROLES_CONVITE: { value: "diretor" | "coordenador" | "integrante" | "contribuinte"; label: string; icon: string }[] = [
-  { value: "diretor", label: "Diretor", icon: "🎯" },
-  { value: "coordenador", label: "Coordenador", icon: "📋" },
-  { value: "integrante", label: "Integrante", icon: "🎭" },
-  { value: "contribuinte", label: "Contribuinte", icon: "💚" },
+const ROLES_CONVITE: { value: "diretor_carnaval" | "diretor_ala" | "diretor_segmento" | "integrante"; label: string; icon: string }[] = [
+  { value: "diretor_carnaval", label: "Diretor de Carnaval", icon: "🎭" },
+  { value: "diretor_ala", label: "Diretor de Ala", icon: "🎯" },
+  { value: "diretor_segmento", label: "Diretor de Segmento", icon: "📋" },
+  { value: "integrante", label: "Integrante", icon: "🎶" },
 ];
 
 export default function ConvitesScreen() {
@@ -40,7 +40,7 @@ export default function ConvitesScreen() {
   const { temPermissao, isGestor } = usePermissions();
 
   const [email, setEmail] = useState("");
-  const [roleSelecionado, setRoleSelecionado] = useState<"diretor" | "coordenador" | "integrante" | "contribuinte">("integrante");
+  const [roleSelecionado, setRoleSelecionado] = useState<"diretor_carnaval" | "diretor_ala" | "diretor_segmento" | "integrante">("integrante");
   const [diasValidade, setDiasValidade] = useState(7);
   const [conviteCriado, setConviteCriado] = useState<{ codigo: string; expiraEm: string } | null>(null);
 
@@ -50,7 +50,7 @@ export default function ConvitesScreen() {
   // Mutation para criar convite
   const criarConviteMutation = trpc.convites.criar.useMutation({
     onSuccess: (data) => {
-      setConviteCriado({ codigo: data.codigo, expiraEm: data.expiraEm.toISOString() });
+      setConviteCriado({ codigo: data.codigo, expiraEm: new Date(Date.now() + diasValidade * 86400000).toISOString() });
       setEmail("");
       convitesQuery.refetch();
       if (Platform.OS !== "web") {

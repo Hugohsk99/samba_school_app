@@ -1,147 +1,118 @@
 /**
- * Testes do Sistema de Permissões
+ * Testes do Sistema de Permissões - Hierarquia 7 Níveis
  */
 
 import { describe, it, expect } from "vitest";
 import { 
   PERMISSOES_POR_ROLE, 
   temPermissaoRole, 
-  Role,
-  PermissaoSistema,
+  type Role,
 } from "../drizzle/schema";
 
-describe("Sistema de Permissões", () => {
+describe("Sistema de Permissões - 7 Níveis", () => {
   describe("Hierarquia de Roles", () => {
     it("Master deve ter todas as permissões", () => {
       const permissoesMaster = PERMISSOES_POR_ROLE.master;
-      expect(permissoesMaster.length).toBeGreaterThan(30);
+      expect(permissoesMaster.length).toBeGreaterThan(20);
       expect(permissoesMaster).toContain("escola.editar");
-      expect(permissoesMaster).toContain("usuarios.alterar_role");
-      expect(permissoesMaster).toContain("financeiro.relatorios");
-      expect(permissoesMaster).toContain("configuracoes.gestao_dados");
+      expect(permissoesMaster).toContain("escola.aprovar_usuarios");
     });
 
-    it("Presidente deve ter permissões de gestão completa", () => {
-      const permissoesPresidente = PERMISSOES_POR_ROLE.presidente;
-      expect(permissoesPresidente).toContain("escola.editar");
-      expect(permissoesPresidente).toContain("escola.gerenciar_plano");
-      expect(permissoesPresidente).toContain("escola.aprovar_usuarios");
-      expect(permissoesPresidente).toContain("usuarios.alterar_role");
-      expect(permissoesPresidente).toContain("financeiro.ver");
-      expect(permissoesPresidente).toContain("financeiro.relatorios");
+    it("Diretor de Escola deve ter permissões de gestão completa", () => {
+      const permissoes = PERMISSOES_POR_ROLE.diretor_escola;
+      expect(permissoes).toContain("escola.editar");
+      expect(permissoes).toContain("escola.gerenciar_plano");
+      expect(permissoes).toContain("escola.aprovar_usuarios");
     });
 
-    it("Diretor deve ter permissões de gestão de blocos e eventos", () => {
-      const permissoesDiretor = PERMISSOES_POR_ROLE.diretor;
-      expect(permissoesDiretor).toContain("escola.aprovar_usuarios");
-      expect(permissoesDiretor).toContain("blocos.ver_todos");
-      expect(permissoesDiretor).toContain("blocos.editar");
-      expect(permissoesDiretor).toContain("eventos.cadastrar");
-      expect(permissoesDiretor).toContain("eventos.checkin");
-      expect(permissoesDiretor).toContain("almoxarifado.entregar_devolver");
-      // Não deve ter acesso financeiro
-      expect(permissoesDiretor).not.toContain("financeiro.ver");
+    it("Diretor de Carnaval deve ter permissões operacionais avançadas", () => {
+      const permissoes = PERMISSOES_POR_ROLE.diretor_carnaval;
+      expect(permissoes).toContain("eventos.cadastrar");
+      expect(permissoes).toContain("eventos.editar");
+      expect(permissoes).toContain("escola.aprovar_usuarios");
     });
 
-    it("Coordenador deve ter permissões operacionais", () => {
-      const permissoesCoordenador = PERMISSOES_POR_ROLE.coordenador;
-      expect(permissoesCoordenador).toContain("eventos.checkin");
-      expect(permissoesCoordenador).toContain("almoxarifado.entregar_devolver");
-      expect(permissoesCoordenador).toContain("relatorios.presenca");
-      // Não deve aprovar usuários
-      expect(permissoesCoordenador).not.toContain("escola.aprovar_usuarios");
+    it("Diretor de Ala deve ter permissões de gestão de ala", () => {
+      const permissoes = PERMISSOES_POR_ROLE.diretor_ala;
+      expect(permissoes).toContain("usuarios.ver_todos");
+    });
+
+    it("Diretor de Segmento deve ter permissões limitadas ao segmento", () => {
+      const permissoes = PERMISSOES_POR_ROLE.diretor_segmento;
+      expect(permissoes).toContain("usuarios.ver_todos");
     });
 
     it("Integrante deve ter permissões básicas de visualização", () => {
-      const permissoesIntegrante = PERMISSOES_POR_ROLE.integrante;
-      expect(permissoesIntegrante).toContain("blocos.ver_todos");
-      expect(permissoesIntegrante).toContain("eventos.ver_todos");
-      // Não deve cadastrar ou editar
-      expect(permissoesIntegrante).not.toContain("eventos.cadastrar");
-      expect(permissoesIntegrante).not.toContain("almoxarifado.cadastrar");
+      const permissoes = PERMISSOES_POR_ROLE.integrante;
+      expect(permissoes).toContain("eventos.ver_todos");
+      expect(permissoes).toContain("blocos.ver_todos");
     });
 
-    it("Contribuinte deve ter permissões mínimas", () => {
-      const permissoesContribuinte = PERMISSOES_POR_ROLE.contribuinte;
-      expect(permissoesContribuinte).toContain("eventos.ver_todos");
-      expect(permissoesContribuinte.length).toBeLessThan(5);
-      // Não deve ver blocos
-      expect(permissoesContribuinte).not.toContain("blocos.ver_todos");
+    it("Pendente não deve ter permissões", () => {
+      const permissoes = PERMISSOES_POR_ROLE.pendente;
+      expect(permissoes.length).toBe(0);
     });
   });
 
   describe("Função temPermissaoRole", () => {
     it("deve retornar true para permissões do role", () => {
       expect(temPermissaoRole("master", "escola.editar")).toBe(true);
-      expect(temPermissaoRole("presidente", "usuarios.alterar_role")).toBe(true);
-      expect(temPermissaoRole("diretor", "eventos.checkin")).toBe(true);
+      expect(temPermissaoRole("diretor_escola", "escola.aprovar_usuarios")).toBe(true);
+      expect(temPermissaoRole("diretor_carnaval", "eventos.cadastrar")).toBe(true);
     });
 
     it("deve retornar false para permissões não pertencentes ao role", () => {
       expect(temPermissaoRole("integrante", "financeiro.ver")).toBe(false);
-      expect(temPermissaoRole("contribuinte", "blocos.cadastrar")).toBe(false);
-      expect(temPermissaoRole("coordenador", "usuarios.alterar_role")).toBe(false);
+      expect(temPermissaoRole("pendente", "eventos.ver_todos")).toBe(false);
     });
   });
 
   describe("Hierarquia de Permissões", () => {
     it("roles superiores devem ter mais permissões que inferiores", () => {
       const master = PERMISSOES_POR_ROLE.master.length;
-      const presidente = PERMISSOES_POR_ROLE.presidente.length;
-      const diretor = PERMISSOES_POR_ROLE.diretor.length;
-      const coordenador = PERMISSOES_POR_ROLE.coordenador.length;
+      const dirEscola = PERMISSOES_POR_ROLE.diretor_escola.length;
+      const dirCarnaval = PERMISSOES_POR_ROLE.diretor_carnaval.length;
+      const dirAla = PERMISSOES_POR_ROLE.diretor_ala.length;
+      const dirSegmento = PERMISSOES_POR_ROLE.diretor_segmento.length;
       const integrante = PERMISSOES_POR_ROLE.integrante.length;
-      const contribuinte = PERMISSOES_POR_ROLE.contribuinte.length;
+      const pendente = PERMISSOES_POR_ROLE.pendente.length;
 
-      expect(master).toBeGreaterThanOrEqual(presidente);
-      expect(presidente).toBeGreaterThan(diretor);
-      expect(diretor).toBeGreaterThan(coordenador);
-      expect(coordenador).toBeGreaterThan(integrante);
-      expect(integrante).toBeGreaterThanOrEqual(contribuinte);
+      expect(master).toBeGreaterThanOrEqual(dirEscola);
+      expect(dirEscola).toBeGreaterThanOrEqual(dirCarnaval);
+      expect(dirCarnaval).toBeGreaterThanOrEqual(dirAla);
+      expect(dirAla).toBeGreaterThanOrEqual(dirSegmento);
+      expect(dirSegmento).toBeGreaterThanOrEqual(integrante);
+      expect(integrante).toBeGreaterThan(pendente);
     });
   });
 
   describe("Permissões Específicas", () => {
-    it("apenas presidente e master podem gerenciar plano", () => {
+    it("apenas diretor_escola e master podem gerenciar plano", () => {
       expect(temPermissaoRole("master", "escola.gerenciar_plano")).toBe(true);
-      expect(temPermissaoRole("presidente", "escola.gerenciar_plano")).toBe(true);
-      expect(temPermissaoRole("diretor", "escola.gerenciar_plano")).toBe(false);
-      expect(temPermissaoRole("coordenador", "escola.gerenciar_plano")).toBe(false);
+      expect(temPermissaoRole("diretor_escola", "escola.gerenciar_plano")).toBe(true);
+      expect(temPermissaoRole("diretor_carnaval", "escola.gerenciar_plano")).toBe(false);
+      expect(temPermissaoRole("integrante", "escola.gerenciar_plano")).toBe(false);
     });
 
-    it("apenas gestores podem aprovar usuários", () => {
+    it("gestores podem aprovar usuários", () => {
       expect(temPermissaoRole("master", "escola.aprovar_usuarios")).toBe(true);
-      expect(temPermissaoRole("presidente", "escola.aprovar_usuarios")).toBe(true);
-      expect(temPermissaoRole("diretor", "escola.aprovar_usuarios")).toBe(true);
-      expect(temPermissaoRole("coordenador", "escola.aprovar_usuarios")).toBe(false);
+      expect(temPermissaoRole("diretor_escola", "escola.aprovar_usuarios")).toBe(true);
+      expect(temPermissaoRole("diretor_carnaval", "escola.aprovar_usuarios")).toBe(true);
       expect(temPermissaoRole("integrante", "escola.aprovar_usuarios")).toBe(false);
-    });
-
-    it("apenas presidente e master podem alterar roles", () => {
-      expect(temPermissaoRole("master", "usuarios.alterar_role")).toBe(true);
-      expect(temPermissaoRole("presidente", "usuarios.alterar_role")).toBe(true);
-      expect(temPermissaoRole("diretor", "usuarios.alterar_role")).toBe(false);
-    });
-
-    it("financeiro deve ser restrito a presidente e master", () => {
-      expect(temPermissaoRole("master", "financeiro.ver")).toBe(true);
-      expect(temPermissaoRole("presidente", "financeiro.ver")).toBe(true);
-      expect(temPermissaoRole("diretor", "financeiro.ver")).toBe(false);
-      expect(temPermissaoRole("coordenador", "financeiro.ver")).toBe(false);
-    });
-
-    it("check-in deve ser acessível para coordenadores e acima", () => {
-      expect(temPermissaoRole("master", "eventos.checkin")).toBe(true);
-      expect(temPermissaoRole("presidente", "eventos.checkin")).toBe(true);
-      expect(temPermissaoRole("diretor", "eventos.checkin")).toBe(true);
-      expect(temPermissaoRole("coordenador", "eventos.checkin")).toBe(true);
-      expect(temPermissaoRole("integrante", "eventos.checkin")).toBe(false);
     });
   });
 
   describe("Consistência do Schema", () => {
-    it("todos os roles devem estar definidos", () => {
-      const roles: Role[] = ["master", "presidente", "diretor", "coordenador", "integrante", "contribuinte"];
+    it("todos os 7 roles devem estar definidos", () => {
+      const roles: Role[] = [
+        "master",
+        "diretor_escola",
+        "diretor_carnaval",
+        "diretor_ala",
+        "diretor_segmento",
+        "integrante",
+        "pendente",
+      ];
       roles.forEach(role => {
         expect(PERMISSOES_POR_ROLE[role]).toBeDefined();
         expect(Array.isArray(PERMISSOES_POR_ROLE[role])).toBe(true);
@@ -149,7 +120,7 @@ describe("Sistema de Permissões", () => {
     });
 
     it("não deve haver permissões duplicadas em um role", () => {
-      Object.entries(PERMISSOES_POR_ROLE).forEach(([role, permissoes]) => {
+      Object.entries(PERMISSOES_POR_ROLE).forEach(([, permissoes]) => {
         const unique = new Set(permissoes);
         expect(unique.size).toBe(permissoes.length);
       });

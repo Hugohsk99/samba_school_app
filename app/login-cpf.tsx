@@ -1,6 +1,6 @@
 /**
  * Tela 02 - Login por CPF + Senha
- * Autenticação própria do sistema
+ * Integrado ao banco de dados via tRPC
  * Fluxo: CPF não existe → cadastro; pendente → status; aprovado → home
  */
 
@@ -19,11 +19,10 @@ import {
 import { useRouter } from "expo-router";
 import { ScreenContainer } from "@/components/screen-container";
 import { useColors } from "@/hooks/use-colors";
-import { useData } from "@/lib/data-context";
 import { useAuth } from "@/lib/auth-context";
 import { useEscola } from "@/lib/escola-context";
 import { useToast } from "@/lib/toast-context";
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import { trpc } from "@/lib/trpc";
 import * as Haptics from "expo-haptics";
 
 // Formatação de CPF
@@ -35,7 +34,7 @@ function formatCPF(value: string): string {
   return `${digits.slice(0, 3)}.${digits.slice(3, 6)}.${digits.slice(6, 9)}-${digits.slice(9)}`;
 }
 
-// Validação básica de CPF
+// Validação de CPF
 function validarCPF(cpf: string): boolean {
   const digits = cpf.replace(/\D/g, "");
   if (digits.length !== 11) return false;
@@ -56,14 +55,10 @@ function validarCPF(cpf: string): boolean {
   return true;
 }
 
-const SENHAS_SALVAS_KEY = "@samba_senhas_usuarios";
-const STATUS_CADASTRO_KEY = "@samba_status_cadastro";
-
 export default function LoginCPFScreen() {
   const router = useRouter();
   const colors = useColors();
-  const { integrantes } = useData();
-  const { login: loginLocal, loginComoAdmin } = useAuth();
+  const { loginCpf, loginComoAdmin } = useAuth();
   const { escola } = useEscola();
   const { showSuccess, showError, showWarning } = useToast();
 
@@ -75,24 +70,21 @@ export default function LoginCPFScreen() {
   const [errosSenha, setErrosSenha] = useState("");
 
   const senhaRef = useRef<TextInput>(null);
-
   const corPrimaria = escola?.corPrimaria || colors.primary;
 
-  // Formatar CPF ao digitar
   const handleCpfChange = (text: string) => {
     const formatted = formatCPF(text);
     setCpf(formatted);
     setErrosCpf("");
   };
 
-  // Login
+  // Login via banco de dados
   const handleLogin = async () => {
     setErrosCpf("");
     setErrosSenha("");
 
     const cpfLimpo = cpf.replace(/\D/g, "");
 
-    // Validar CPF
     if (!cpfLimpo || cpfLimpo.length < 11) {
       setErrosCpf("Informe o CPF completo");
       return;
@@ -103,7 +95,6 @@ export default function LoginCPFScreen() {
       return;
     }
 
-    // Validar senha
     if (!senha.trim()) {
       setErrosSenha("Informe a senha");
       return;
@@ -117,72 +108,44 @@ export default function LoginCPFScreen() {
     setIsLoading(true);
 
     try {
-      // Verificar se CPF existe nos integrantes cadastrados
-      const integrante = integrantes.find(
-        (i) => i.cpf?.replace(/\D/g, "") === cpfLimpo
-      );
+      const result = await loginCpf(cpfLimpo, senha);
 
-      if (!integrante) {
-        // CPF não encontrado - verificar se tem cadastro pendente
-        const statusCadastro = await AsyncStorage.getItem(
-          `${STATUS_CADASTRO_KEY}_${cpfLimpo}`
-        );
-
-        if (statusCadastro) {
-          const dados = JSON.parse(statusCadastro);
-          if (dados.status === "pendente") {
-            // Redirecionar para tela de status
-            if (Platform.OS !== "web") {
-              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-            }
-            router.push({
-              pathname: "/status-cadastro" as any,
-              params: { cpf: cpfLimpo },
-            });
-            return;
+      if (!result.success) {
+        if (result.error === "cpf_nao_encontrado") {
+          // CPF não existe → redirecionar para cadastro
+          if (Platform.OS !== "web") {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
           }
+          showWarning(
+            "CPF não encontrado",
+            "Você será redirecionado para o cadastro."
+          );
+          router.push({
+            pathname: "/cadastro-integrante" as any,
+            params: { cpf: cpfLimpo },
+          });
+          return;
         }
 
-        // CPF não existe - redirecionar para cadastro
-        if (Platform.OS !== "web") {
-          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        if (result.error === "senha_incorreta") {
+          setErrosSenha("Senha incorreta");
+          if (Platform.OS !== "web") {
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+          }
+          return;
         }
-        showWarning(
-          "CPF não encontrado",
-          "Você será redirecionado para o cadastro."
-        );
-        router.push({
-          pathname: "/cadastro-integrante" as any,
-          params: { cpf: cpfLimpo },
-        });
+
+        // Erro genérico
+        showError("Erro", result.error || "Não foi possível fazer login.");
         return;
       }
 
-      // CPF encontrado - verificar senha
-      const senhasSalvas = await AsyncStorage.getItem(SENHAS_SALVAS_KEY);
-      const senhas = senhasSalvas ? JSON.parse(senhasSalvas) : {};
-
-      // Se não tem senha cadastrada, criar na primeira vez
-      if (!senhas[cpfLimpo]) {
-        senhas[cpfLimpo] = senha;
-        await AsyncStorage.setItem(SENHAS_SALVAS_KEY, JSON.stringify(senhas));
-        // Primeira vez - login direto
-      } else if (senhas[cpfLimpo] !== senha) {
-        setErrosSenha("Senha incorreta");
-        if (Platform.OS !== "web") {
-          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-        }
-        setIsLoading(false);
-        return;
-      }
-
-      // Login bem-sucedido
+      // Login bem-sucedido - verificar status
       if (Platform.OS !== "web") {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       }
 
-      await loginLocal(integrante);
-      showSuccess("Bem-vindo(a)!", `Olá, ${integrante.nome.split(" ")[0]}!`);
+      showSuccess("Bem-vindo(a)!", "Login realizado com sucesso!");
       router.replace("/(tabs)");
     } catch (error) {
       showError("Erro", "Não foi possível fazer login. Tente novamente.");
@@ -210,6 +173,7 @@ export default function LoginCPFScreen() {
 
   // Trocar escola
   const handleTrocarEscola = async () => {
+    const AsyncStorage = (await import("@react-native-async-storage/async-storage")).default;
     await AsyncStorage.removeItem("@samba_escola_selecionada");
     router.replace("/landing" as any);
   };
@@ -256,7 +220,6 @@ export default function LoginCPFScreen() {
               Faça login para continuar
             </Text>
 
-            {/* Botão trocar escola */}
             <TouchableOpacity
               onPress={handleTrocarEscola}
               activeOpacity={0.7}
@@ -321,8 +284,12 @@ export default function LoginCPFScreen() {
                 />
                 <TouchableOpacity
                   onPress={() => setMostrarSenha(!mostrarSenha)}
-                  className="absolute right-4"
                   activeOpacity={0.7}
+                  style={{
+                    position: "absolute",
+                    right: 12,
+                    padding: 8,
+                  }}
                 >
                   <Text className="text-muted text-xl">
                     {mostrarSenha ? "🙈" : "👁️"}

@@ -1,7 +1,13 @@
 /**
  * Tela 01 - Landing / Seleção de Escola
  * Primeira tela do app - exibe escolas disponíveis
- * Permite selecionar escola ou solicitar associação
+ * 
+ * Fluxo:
+ * 1. Usuário vê escolas cadastradas
+ * 2. Seleciona uma escola
+ * 3. Se escola NÃO tem Diretor de Carnaval → registro-diretor-carnaval
+ * 4. Se escola TEM Diretor de Carnaval → login-cpf
+ * 5. Botão "+" → contato-associacao
  */
 
 import { useState, useEffect, useCallback } from "react";
@@ -20,22 +26,26 @@ import { useRouter } from "expo-router";
 import { ScreenContainer } from "@/components/screen-container";
 import { useColors } from "@/hooks/use-colors";
 import { useEscola } from "@/lib/escola-context";
+import { trpc } from "@/lib/trpc";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Haptics from "expo-haptics";
 
 const ESCOLA_SELECIONADA_KEY = "@samba_escola_selecionada";
 
 // Escola padrão: Estácio S.A.
-const ESCOLA_PADRAO = {
-  id: "estacio-sa",
-  nome: "Estácio de Sá",
-  sigla: "Estácio S.A.",
-  fundacao: "1928",
-  cores: ["#FF0000", "#FFFFFF"],
-  corPrimaria: "#CC0000",
-  bairro: "Estácio, Rio de Janeiro",
-  logo: null as string | null,
-};
+const ESCOLAS_INICIAIS = [
+  {
+    id: 1,
+    dbId: 1,
+    nome: "Estácio de Sá",
+    sigla: "Estácio S.A.",
+    fundacao: "1928",
+    cores: ["#CC0000", "#FFFFFF"],
+    corPrimaria: "#CC0000",
+    bairro: "Estácio, Rio de Janeiro",
+    logo: null as string | null,
+  },
+];
 
 // Contatos para associação
 const CONTATOS = {
@@ -52,29 +62,39 @@ export default function LandingScreen() {
   const { escola, updateEscola } = useEscola();
   const [isLoading, setIsLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [escolaSelecionada, setEscolaSelecionada] = useState<string | null>(null);
+  const [checkingEscola, setCheckingEscola] = useState<number | null>(null);
 
-  // Escolas disponíveis (por enquanto, apenas Estácio S.A. + escola cadastrada localmente)
-  const escolasDisponiveis = [ESCOLA_PADRAO];
+  // tRPC query to check if escola has director
+  const utils = trpc.useUtils();
 
-  // Verificar se já tem escola selecionada
+  // Verificar se já tem escola selecionada e sessão ativa
   useEffect(() => {
-    const verificarEscola = async () => {
+    const verificarSessao = async () => {
       try {
-        const escolaId = await AsyncStorage.getItem(ESCOLA_SELECIONADA_KEY);
-        if (escolaId) {
-          setEscolaSelecionada(escolaId);
-          // Se já tem escola selecionada, vai direto para login
-router.replace("/login-cpf" as any);
-      return;
+        const sessaoSalva = await AsyncStorage.getItem("@samba_sessao");
+        if (sessaoSalva) {
+          const sessao = JSON.parse(sessaoSalva);
+          if (sessao.isLoggedIn && sessao.statusUsuario === "aprovado") {
+            // Já está logado e aprovado → ir direto para home
+            router.replace("/(tabs)" as any);
+            return;
+          }
+          if (sessao.isLoggedIn && sessao.statusUsuario === "pendente") {
+            // Logado mas pendente → ir para status
+            router.replace({
+              pathname: "/status-cadastro" as any,
+              params: { cpf: sessao.cpf || "" },
+            });
+            return;
+          }
         }
       } catch (error) {
-        console.error("Erro ao verificar escola:", error);
+        console.error("Erro ao verificar sessão:", error);
       } finally {
         setIsLoading(false);
       }
     };
-    verificarEscola();
+    verificarSessao();
   }, []);
 
   const onRefresh = useCallback(() => {
@@ -82,27 +102,53 @@ router.replace("/login-cpf" as any);
     setTimeout(() => setRefreshing(false), 1000);
   }, []);
 
-  // Selecionar escola
-  const handleSelecionarEscola = async (escolaId: string) => {
+  // Selecionar escola - verifica se tem Diretor de Carnaval
+  const handleSelecionarEscola = async (esc: typeof ESCOLAS_INICIAIS[0]) => {
     if (Platform.OS !== "web") {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     }
-    try {
-      await AsyncStorage.setItem(ESCOLA_SELECIONADA_KEY, escolaId);
-      setEscolaSelecionada(escolaId);
 
-      // Se for a escola padrão, configurar dados
-      if (escolaId === ESCOLA_PADRAO.id) {
-        await updateEscola({
-          nome: ESCOLA_PADRAO.nome,
-          corPrimaria: ESCOLA_PADRAO.corPrimaria,
-          corSecundaria: "#1A1A1A",
-        });
+    setCheckingEscola(esc.id);
+
+    try {
+      // Salvar escola selecionada
+      await AsyncStorage.setItem(ESCOLA_SELECIONADA_KEY, String(esc.id));
+      await updateEscola({
+        nome: esc.nome,
+        corPrimaria: esc.corPrimaria,
+        corSecundaria: "#1A1A1A",
+      });
+
+      // Verificar se a escola tem Diretor de Carnaval no banco
+      let temDiretor = false;
+      try {
+        const result = await utils.auth.escolaTemDiretor.fetch({ escolaId: esc.dbId });
+        temDiretor = result.temDiretor;
+      } catch (error) {
+        // Se falhar a consulta ao banco, assumir que não tem (primeiro acesso)
+        console.log("Não foi possível verificar no banco, assumindo primeiro acesso");
+        temDiretor = false;
       }
 
-      router.replace("/login-cpf" as any);
+      if (!temDiretor) {
+        // Escola sem Diretor de Carnaval → primeiro acesso
+        router.push({
+          pathname: "/registro-diretor-carnaval" as any,
+          params: {
+            escolaId: String(esc.dbId),
+            escolaNome: esc.nome,
+          },
+        });
+      } else {
+        // Escola com Diretor → login normal
+        router.push("/login-cpf" as any);
+      }
     } catch (error) {
       console.error("Erro ao selecionar escola:", error);
+      // Fallback: ir para login
+      router.push("/login-cpf" as any);
+    } finally {
+      setCheckingEscola(null);
     }
   };
 
@@ -175,10 +221,11 @@ router.replace("/login-cpf" as any);
             Escolas Cadastradas
           </Text>
 
-          {escolasDisponiveis.map((esc) => (
+          {ESCOLAS_INICIAIS.map((esc) => (
             <TouchableOpacity
               key={esc.id}
-              onPress={() => handleSelecionarEscola(esc.id)}
+              onPress={() => handleSelecionarEscola(esc)}
+              disabled={checkingEscola !== null}
               activeOpacity={0.7}
               style={{
                 backgroundColor: colors.surface,
@@ -186,12 +233,13 @@ router.replace("/login-cpf" as any);
                 padding: 20,
                 marginBottom: 12,
                 borderWidth: 2,
-                borderColor: escolaSelecionada === esc.id ? esc.corPrimaria : colors.border,
+                borderColor: colors.border,
                 shadowColor: "#000",
                 shadowOffset: { width: 0, height: 2 },
                 shadowOpacity: 0.1,
                 shadowRadius: 4,
                 elevation: 3,
+                opacity: checkingEscola !== null && checkingEscola !== esc.id ? 0.5 : 1,
               }}
             >
               <View className="flex-row items-center">
@@ -227,8 +275,12 @@ router.replace("/login-cpf" as any);
                   </Text>
                 </View>
 
-                {/* Seta */}
-                <Text className="text-muted text-xl ml-2">›</Text>
+                {/* Loading ou Seta */}
+                {checkingEscola === esc.id ? (
+                  <ActivityIndicator size="small" color={esc.corPrimaria} />
+                ) : (
+                  <Text className="text-muted text-xl ml-2">›</Text>
+                )}
               </View>
 
               {/* Cores da escola */}
@@ -247,51 +299,6 @@ router.replace("/login-cpf" as any);
               </View>
             </TouchableOpacity>
           ))}
-
-          {/* Escola cadastrada localmente */}
-          {escola && escola.id !== ESCOLA_PADRAO.id && (
-            <TouchableOpacity
-              onPress={() => handleSelecionarEscola(escola.id)}
-              activeOpacity={0.7}
-              style={{
-                backgroundColor: colors.surface,
-                borderRadius: 16,
-                padding: 20,
-                marginBottom: 12,
-                borderWidth: 2,
-                borderColor: escolaSelecionada === escola.id ? (escola.corPrimaria || colors.primary) : colors.border,
-              }}
-            >
-              <View className="flex-row items-center">
-                <View
-                  className="w-16 h-16 rounded-full items-center justify-center mr-4"
-                  style={{
-                    backgroundColor: (escola.corPrimaria || colors.primary) + "20",
-                    borderWidth: 2,
-                    borderColor: escola.corPrimaria || colors.primary,
-                  }}
-                >
-                  {escola.logo ? (
-                    <Image
-                      source={{ uri: escola.logo }}
-                      className="w-14 h-14 rounded-full"
-                    />
-                  ) : (
-                    <Text className="text-3xl">🎪</Text>
-                  )}
-                </View>
-                <View className="flex-1">
-                  <Text className="text-foreground text-lg font-bold">
-                    {escola.nome}
-                  </Text>
-                  <Text className="text-muted text-sm mt-1">
-                    Escola local
-                  </Text>
-                </View>
-                <Text className="text-muted text-xl ml-2">›</Text>
-              </View>
-            </TouchableOpacity>
-          )}
         </View>
 
         {/* Divider */}

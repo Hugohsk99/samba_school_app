@@ -27,11 +27,11 @@ import { trpc } from "@/lib/trpc";
 import { usePermissions, Role, PERMISSOES_POR_ROLE } from "@/lib/permissions-context";
 
 const ROLES_DISPONIVEIS: { value: Role; label: string; icon: string }[] = [
-  { value: "presidente", label: "Presidente", icon: "👑" },
-  { value: "diretor", label: "Diretor", icon: "🎯" },
-  { value: "coordenador", label: "Coordenador", icon: "📋" },
-  { value: "integrante", label: "Integrante", icon: "🎭" },
-  { value: "contribuinte", label: "Contribuinte", icon: "💚" },
+  { value: "diretor_escola", label: "Diretor de Escola", icon: "👑" },
+  { value: "diretor_carnaval", label: "Diretor de Carnaval", icon: "🎭" },
+  { value: "diretor_ala", label: "Diretor de Ala", icon: "🎯" },
+  { value: "diretor_segmento", label: "Diretor de Segmento", icon: "📋" },
+  { value: "integrante", label: "Integrante", icon: "🎶" },
 ];
 
 type TabAtiva = "todos" | "pendentes" | "solicitacoes";
@@ -149,7 +149,7 @@ export default function GestaoUsuariosScreen() {
     if (Platform.OS !== "web") {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     }
-    aprovarMutation.mutate({ usuarioId, role: role as "diretor" | "coordenador" | "integrante" | "contribuinte" });
+    aprovarMutation.mutate({ usuarioId, role: role as "diretor_carnaval" | "diretor_ala" | "diretor_segmento" | "integrante" });
   };
 
   // Rejeitar usuário
@@ -178,7 +178,7 @@ export default function GestaoUsuariosScreen() {
     if (Platform.OS !== "web") {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     }
-    alterarRoleMutation.mutate({ usuarioId, role: role as "presidente" | "diretor" | "coordenador" | "integrante" | "contribuinte" });
+    alterarRoleMutation.mutate({ usuarioId, role: role as "diretor_escola" | "diretor_carnaval" | "diretor_ala" | "diretor_segmento" | "integrante" | "pendente" });
   };
 
   // Suspender usuário
@@ -205,8 +205,9 @@ export default function GestaoUsuariosScreen() {
   // Verificar se pode alterar para determinado role
   const podeAlterarPara = (targetRole: Role): boolean => {
     if (meuRole === "master") return true;
-    if (meuRole === "presidente") return targetRole !== "master";
-    if (meuRole === "diretor") return ["coordenador", "integrante", "contribuinte"].includes(targetRole);
+    if (meuRole === "diretor_escola") return targetRole !== "master";
+    if (meuRole === "diretor_carnaval") return ["diretor_ala", "diretor_segmento", "integrante"].includes(targetRole);
+    if (meuRole === "diretor_ala") return ["diretor_segmento", "integrante"].includes(targetRole);
     return false;
   };
 
@@ -477,7 +478,7 @@ export default function GestaoUsuariosScreen() {
 
                   <Text className="text-foreground font-medium mb-2">Selecione o nível de acesso:</Text>
                   <View className="flex-row flex-wrap gap-2 mb-4">
-                    {ROLES_DISPONIVEIS.filter((r) => r.value !== "master" && r.value !== "presidente").map((role) => (
+                    {ROLES_DISPONIVEIS.filter((r) => r.value !== "master" && r.value !== "diretor_escola").map((role) => (
                       <TouchableOpacity
                         key={role.value}
                         onPress={() => {
@@ -581,7 +582,7 @@ export default function GestaoUsuariosScreen() {
 
                   <Text className="text-foreground font-medium mb-2">Selecione o nível de acesso:</Text>
                   <View className="flex-row flex-wrap gap-2 mb-4">
-                    {ROLES_DISPONIVEIS.filter((r) => r.value !== "master" && r.value !== "presidente").map((role) => (
+                    {ROLES_DISPONIVEIS.filter((r) => r.value !== "master" && r.value !== "diretor_escola").map((role) => (
                       <TouchableOpacity
                         key={role.value}
                         onPress={() => {
@@ -635,7 +636,7 @@ export default function GestaoUsuariosScreen() {
                         if (usuarioSelecionado === solicitacao.id && novoRole) {
                           aprovarSolicitacaoMutation.mutate({
                             solicitacaoId: solicitacao.id,
-                            role: novoRole as "diretor" | "coordenador" | "integrante" | "contribuinte",
+                            role: novoRole as "diretor_carnaval" | "diretor_ala" | "diretor_segmento" | "integrante",
                           });
                         } else {
                           Alert.alert("Atenção", "Selecione um nível de acesso");
