@@ -13,6 +13,8 @@ import { EscolaProvider } from "@/lib/escola-context";
 import { ToastProvider } from "@/lib/toast-context";
 import { AuthProvider, useAuth } from "@/lib/auth-context";
 import { FinanceiroProvider } from "@/lib/financeiro-context";
+import { useEscola } from "@/lib/escola-context";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
   SafeAreaFrameContext,
   SafeAreaInsetsContext,
@@ -39,11 +41,29 @@ export const unstable_settings = {
  */
 function NavigationGuard({ children }: { children: React.ReactNode }) {
   const { isLoggedIn, isLoading, sessao, usuario } = useAuth();
+  const { escola } = useEscola();
   const segments = useSegments();
   const router = useRouter();
+  const [escolaChecked, setEscolaChecked] = useState(false);
+  const [hasEscolaSelecionada, setHasEscolaSelecionada] = useState(false);
+
+  // Check if escola is selected in AsyncStorage
+  useEffect(() => {
+    const checkEscola = async () => {
+      try {
+        const escolaSalva = await AsyncStorage.getItem("@samba_escola_selecionada");
+        setHasEscolaSelecionada(!!escolaSalva);
+      } catch {
+        setHasEscolaSelecionada(false);
+      } finally {
+        setEscolaChecked(true);
+      }
+    };
+    checkEscola();
+  }, []);
 
   useEffect(() => {
-    if (isLoading) return;
+    if (isLoading || !escolaChecked) return;
 
     const inAuthGroup = segments[0] === "(tabs)";
     const inLanding = segments[0] === "landing";
@@ -57,14 +77,20 @@ function NavigationGuard({ children }: { children: React.ReactNode }) {
     // Public routes that don't require auth
     const isPublicRoute = inLanding || inLogin || inCadastro || inStatus || inContato || inOAuth || inRegistroDiretor;
 
+    // If user is in protected area but not logged in → go to landing
     if (!isLoggedIn && inAuthGroup) {
-      // Not logged in but trying to access protected route → go to landing
       router.replace("/landing" as any);
       return;
     }
 
+    // If user is in protected area but no escola selected → go to landing
+    if (inAuthGroup && !hasEscolaSelecionada) {
+      router.replace("/landing" as any);
+      return;
+    }
+
+    // If user is logged in and in protected area, check if pending
     if (isLoggedIn && inAuthGroup) {
-      // Check if user is pending approval
       const status = usuario?.statusUsuario || sessao?.statusUsuario;
       if (status === "pendente") {
         router.replace({
@@ -76,7 +102,7 @@ function NavigationGuard({ children }: { children: React.ReactNode }) {
     }
 
     // Don't force redirect from public routes - let user navigate freely
-  }, [isLoggedIn, isLoading, segments, usuario, sessao]);
+  }, [isLoggedIn, isLoading, segments, usuario, sessao, escolaChecked, hasEscolaSelecionada]);
 
   return <>{children}</>;
 }

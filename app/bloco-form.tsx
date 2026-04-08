@@ -124,7 +124,7 @@ export default function BlocoFormScreen() {
           </TouchableOpacity>
 
           <Text className="text-foreground text-xl font-bold">
-            {isEditing ? "✏️ Editar Bloco" : "➕ Novo Bloco"}
+            {isEditing ? "✏️ Editar Segmento" : "➕ Novo Segmento"}
           </Text>
 
           <TouchableOpacity

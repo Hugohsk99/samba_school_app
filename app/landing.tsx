@@ -71,15 +71,16 @@ export default function LandingScreen() {
   useEffect(() => {
     const verificarSessao = async () => {
       try {
-        const sessaoSalva = await AsyncStorage.getItem("@samba_sessao");
-        if (sessaoSalva) {
+        const sessaoSalva = await AsyncStorage.getItem("@samba_sessao_v2");
+        const escolaSalva = await AsyncStorage.getItem("@samba_escola_selecionada");
+        if (sessaoSalva && escolaSalva) {
           const sessao = JSON.parse(sessaoSalva);
-          if (sessao.isLoggedIn && sessao.statusUsuario === "aprovado") {
+          if (sessao.statusUsuario === "aprovado") {
             // Já está logado e aprovado → ir direto para home
             router.replace("/(tabs)" as any);
             return;
           }
-          if (sessao.isLoggedIn && sessao.statusUsuario === "pendente") {
+          if (sessao.statusUsuario === "pendente") {
             // Logado mas pendente → ir para status
             router.replace({
               pathname: "/status-cadastro" as any,

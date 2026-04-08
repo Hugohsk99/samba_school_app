@@ -273,10 +273,10 @@ export default function HomeScreen() {
                 </View>
                 <View className="flex-1">
                   <Text className="text-white text-lg font-bold">
-                    Novo Bloco
+                    Novo Segmento
                   </Text>
                   <Text className="text-white/80 text-base">
-                    Adicionar um novo bloco à escola
+                    Adicionar um novo segmento à escola
                   </Text>
                 </View>
                 <Text className="text-white text-2xl">→</Text>

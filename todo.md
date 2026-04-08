@@ -625,3 +625,12 @@
 - [x] Corrigir import useAuth em painel-presidente.tsx (hooks/use-auth → lib/auth-context)
 - [x] Corrigir import useAuth em ativos-fixos.tsx (hooks/use-auth → lib/auth-context)
 - [x] Corrigir import useAuth em notificacoes-context.tsx (hooks/use-auth → lib/auth-context)
+
+## Sprint 20.3 - Bugs: Landing não carrega + Novo Bloco → Novo Segmento
+
+- [x] Bug: Tela de Landing não carrega, app cai direto dentro sem passar pelo login
+- [x] Investigar _layout.tsx e fluxo de navegação inicial
+- [x] Corrigir para que o app sempre passe pela Landing/Login antes de acessar as tabs
+- [x] Corrigir NavigationGuard para verificar escola selecionada no AsyncStorage
+- [x] Corrigir landing.tsx para usar chave de sessão correta (@samba_sessao_v2)
+- [x] Corrigir label "Novo Bloco" para "Novo Segmento" nas Ações Rápidas (index.tsx + bloco-form.tsx)
